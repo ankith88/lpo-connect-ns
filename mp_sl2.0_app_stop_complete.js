@@ -3,12 +3,12 @@
  * @NScriptType Suitelet
  *
  * Author:               Ankith Ravindran
- * Created on:           Fri Aug 08 2025
- * Modified on:          Fri Aug 08 2025 09:32:31
- * SuiteScript Version:  2.0 
- * Description:           
+ * Created on:           Tue Apr 28 2026
+ * Modified on:          Tue Apr 28 2026 11:05:21
+ * SuiteScript Version:  2.0
+ * Description:           Suitelet script to handle stop completion by operator and update the status in Firebase, as well as send email notification to LPO.
  *
- * Copyright (c) 2025 MailPlus Pty. Ltd.
+ * Copyright (c) 2026 MailPlus Pty. Ltd.
  */
 
 
@@ -227,11 +227,11 @@ define(['N/ui/serverWidget', 'N/email', 'N/runtime', 'N/search', 'N/record',
                             details: myresponse_code
                         });
 
-                        //Send Email to LPO when job has been accepted by the operator for the day.
+                        //Send Email to LPO when stop has been completed by the operator for the day.
                         if (!isNullorEmpty(lpoParentEmail)) {
-                            var emailSubject = 'Job Accepted by Operator';
+                            var emailSubject = 'Stop Completed by Operator';
                             var emailBody = 'Dear LPO,<br><br>';
-                            emailBody += 'We would like to inform you that the job with ID ' + lpoHubJobID + ' has been accepted by the operator for the day.<br><br>';
+                            emailBody += 'We would like to inform you that the stop with ID ' + lpoHubJobID + ' has been completed by the operator for the day.<br><br>';
                             emailBody += 'Best regards,<br>';
                             emailBody += 'MailPlus Team';
 
