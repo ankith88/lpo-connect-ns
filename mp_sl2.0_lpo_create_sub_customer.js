@@ -97,7 +97,7 @@ define(['N/ui/serverWidget', 'N/email', 'N/runtime', 'N/search', 'N/record',
                 var lpo_notes = context.request.parameters.lpo_notes;
                 var lpoNewcustomerServiceType = context.request.parameters.jobType;
                 var billing = context.request.parameters.billing;
-                var lead_selected_service_text = context.request.parameters.service;
+                var lead_selected_service_text = context.request.parameters.service_name;
                 var lead_service_date = context.request.parameters.startDate;
 
                 var lead_service_date = null;
