@@ -187,7 +187,7 @@ define([
 						name: "internalid",
 						join: "CUSTOMER",
 						operator: search.Operator.ANYOF,
-						values: customerInternalId
+						values: appJobGroupCustomerInternalID
 					})
 				);
 				resultSetContacts = searched_contacts.run();
@@ -287,6 +287,11 @@ define([
 					enableSourcing: true,
 					ignoreMandatoryFields: true
 				});
+
+				log.debug({
+					title: 'serviceLeg',
+					details: serviceLeg
+				})
 
 				//Search Name: LPO.PLUS - App Job Groups & App Jobs
 				var lpoPlusAppJobGroupStatusSyncSearch = search.load({
@@ -451,6 +456,11 @@ define([
 							stops: [{ index: parseInt(serviceLeg - 1), status: "completed" }]
 						}
 					};
+
+					log.debug({
+						title: "updateJobCollectionJSON",
+						details: JSON.stringify(updateJobCollectionJSON)
+					});
 
 					var firebaseUpdateURL =
 						"https://us-central1-mp-lpo-connect.cloudfunctions.net/updateJobStatus";
@@ -774,7 +784,7 @@ define([
 							jobId: String(lpoHubJobID),
 							collectionName: "jobs",
 							status: "incomplete",
-							stops: [{ index: parseInt(serviceLeg), status: "incomplete" }]
+							stops: [{ index: parseInt(serviceLeg - 1), status: "incomplete" }]
 						}
 					};
 
