@@ -3,10 +3,10 @@
  * @NScriptType Suitelet
  *
  * Author:               Ankith Ravindran
- * Created on:           Tue Apr 21 2026
- * Modified on:          Tue Apr 21 2026 12:21:29
+ * Created on:           Fri May 01 2026
+ * Modified on:          Fri May 01 2026 10:21:03
  * SuiteScript Version:  2.0
- * Description:          Suitelet used to send out the request to the franchisee owner of a new job request from the LPO.
+ * Description:           SuiteLet to send email and SMS to operators and franchisees when user clicks "Message Operator" button in LPO.PLUS.
  *
  * Copyright (c) 2026 MailPlus Pty. Ltd.
  */
@@ -51,10 +51,6 @@ define([
 		var lpoLeadBDMAssigned = null;
 
 		var date = new Date();
-		var year = date.getFullYear();
-		var month = pad(date.getMonth() + 1);
-		var day = pad(date.getDate());
-		var todayDate = year + "-" + month + "-" + day;
 		var date_now = format.parse({
 			value: date,
 			type: format.Type.DATE
@@ -74,11 +70,25 @@ define([
 				details: context.request.parameters
 			});
 
-			//{"compid":"1048144","lpo_id":"1974139","ns-at":"AAEJ7tMQM_E8dKF2qjDMy9ESy5q883g7xrb8uKwfgGOku62wheU","customer_id":"1993911","request_id":"mbq5xNZggC79fmYIOzNc","script":"2528","deploy":"1"}
+			//{"netsuiteCustomerId":"1996096","compid":"1048144","appJobGroupId":"21165009","lpo_id":"1974139","ns-at":"AAEJ7tMQeYW40giJlU7O2McXMAA-MKOcrvoW29VOHNRcMiaQ7AM","document_id":"y9BcMxvWuOSGcoAmf0rq","message":"This is a test message","script":"2535","deploy":"1"}
 
-			var jobRequestId = context.request.parameters.request_id;
-			var lpoInternalId = context.request.parameters.lpo_id;
-			var customerInternalId = context.request.parameters.customer_id;
+			var lpoPlusJobId = context.request.parameters.document_id;
+			var lpoParentId = context.request.parameters.lpo_id;
+
+			var lpoParentCustomerRecord = record.load({
+				type: record.Type.CUSTOMER,
+				id: lpoParentId
+			});
+			var lpoName = lpoParentCustomerRecord.getValue({
+				fieldId: "companyname"
+			});
+			var lpoNameArray = lpoName.split(" - ");
+			lpoName = lpoNameArray[0].trim();
+
+			var appJobGroupId = context.request.parameters.appJobGroupId;
+			var message = context.request.parameters.message;
+
+			var customerInternalId = context.request.parameters.netsuiteCustomerId;
 			var customerRecord = record.load({
 				type: "customer",
 				id: customerInternalId
@@ -109,32 +119,18 @@ define([
 			partnerPhone = partnerPhone.slice(1);
 			partnerPhone = "+61" + partnerPhone;
 
-			var jobRequestPageURL =
-				"https://lpo.plus/request/" + context.request.parameters.request_id;
+			//Send email to franchisee owner with the message from the user with the details of the job request
 
-			var emailSubject = "New Job Request for " + business_name;
+			// var emailSubject =
+			// 	"Message from LPO.PLUS for " + business_name + " from " + lpoName;
 			// var emailBody =
-			// 	"You have received a new job request for " +
+			// 	"Below is the message from LPO.PLUS for " +
 			// 	business_name +
-			// 	". Please click the link below to view the details of the request and accept or reject it. \n\n" +
-			// 	jobRequestPageURL;
+			// 	":\n\n" +
+			// 	message +
+			// 	"\n\n";
 
-			var emailBody =
-				"<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>.email-container{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);border:1px solid #f0f0f0;}.header{background-color:#095c7b;padding:40px 20px;text-align:center;}.header h1{color:#ffffff;margin:0;font-size:24px;font-weight:300;letter-spacing:1px;}.header span{color:#EAF044;font-weight:bold;}.content{padding:40px 30px;color:#333333;line-height:1.6;}.greeting{font-size:18px;margin-bottom:20px;color:#095c7b;font-weight:bold;}.action-box{background-color:#f8fafb;border-radius:8px;padding:25px;margin:30px 0;border-left:4px solid #EAF044;}.button-container{text-align:center;margin:40px 0;}.btn-primary{background-color:#EAF044;color:#095c7b;padding:16px 32px;text-decoration:none;font-weight:bold;border-radius:8px;display:inline-block;transition:background 0.3s;box-shadow:0 4px 12px rgba(234,240,68,0.3);text-transform:uppercase;}.footer{background-color:#f4f7f8;padding:30px;text-align:center;font-size:12px;color:#999;}.footer p{margin:5px 0;}</style>";
-			emailBody +=
-				'</head><body><div class="email-container"><div class="header"><h1>lpo<span>.plus</span></h1></div><div class="content"><div class="greeting">New Job Request Received</div><p>Hello ' +
-				mainContactName +
-				",</p><p>A new job request has been submitted for <strong>" +
-				business_name +
-				'</strong> and is currently awaiting your review.</p><div class="action-box"><p style="margin-top:0;color:#095c7b;font-weight:600;">Action Required:</p><p>Please follow the link below to view the full job details. You will need to:</p><ul style="padding-left:20px;"><li><strong>Accept</strong> the request to add it to your manifest.</li><li><strong>Decline</strong> the job if it cannot be fulfilled.</li><li><strong>Propose a new time</strong> if the requested slot is unavailable</li></ul></div><p>You can also use the integrated portal to <strong>chat directly with the LPO</strong> regarding any specific logistics or instructions for this request.</p><div class="button-container"><a href="' +
-				jobRequestPageURL +
-				'" class="btn-primary"> View Request & Chat </a></div><p style="font-size:14px;color:#666;">This request was generated via your unique booking link to ensure seamless coordination</p></div>';
-			emailBody +=
-				'<div class="footer"><p><strong>lpo.plus</strong> | Local logistics, made simple.</p><p>Powered by MailPlus Australia</p><p style="margin-top:15px;">&copy; ' +
-				year +
-				" lpo.plus. All rights reserved.</p></div></div></body></html>";
-
-			// Send email to franchisee owner
+			// // Send email to franchisee owner
 			// email.send({
 			// 	author: 112209,
 			// 	recipients: partnerEmail,
@@ -144,16 +140,36 @@ define([
 			// 	relatedRecords: { entityId: customerInternalId }
 			// });
 
-			//Send Email using bookings@lpo.plus domain using the LPO.PLUS Application API.
+			var emailBody =
+				"<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>.email-container{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);border:1px solid #f0f0f0;}.header{background-color:#095c7b;padding:40px 20px;text-align:center;}.header h1{color:#ffffff;margin:0;font-size:24px;font-weight:300;letter-spacing:1px;}.header span{color:#EAF044;font-weight:bold;}.content{padding:40px 30px;color:#333333;line-height:1.6;}.greeting{font-size:18px;margin-bottom:20px;color:#095c7b;font-weight:bold;}.action-box{background-color:#f8fafb;border-radius:8px;padding:25px;margin:30px 0;border-left:4px solid #EAF044;}.button-container{text-align:center;margin:40px 0;}.btn-primary{background-color:#EAF044;color:#095c7b;padding:16px 32px;text-decoration:none;font-weight:bold;border-radius:8px;display:inline-block;transition:background 0.3s;box-shadow:0 4px 12px rgba(234,240,68,0.3);text-transform:uppercase;}.footer{background-color:#f4f7f8;padding:30px;text-align:center;font-size:12px;color:#999;}.footer p{margin:5px 0;}</style></head>";
+			var year = new Date().getFullYear();
+			//Email to LPO to let them know the job request has been accepted by the franchisee.
+
+			emailBody +=
+				'</head><body><div class="email-container"><div class="header"><h1>LPO<span>.PLUS</span></h1></div><div class="content"><div class="greeting">Message from LPO.PLUS</div><p>Hi ' +
+				mainContactName +
+				"</p><p>Below is the message for customer," +
+				business_name +
+				", sent by the LPO: " +
+				lpoName +
+				".</p><p>" +
+				message +
+				'</p><div class="status-box"></div><p style="font-size:14px;color:#666;">Please contact LPO.PLUS for further assistance.</p></div>';
+
+			emailBody +=
+				'<div class="footer"><p><strong>lpo.plus</strong> | Local logistics, made simple.</p><p>Powered by MailPlus Australia</p><p style="margin-top:15px;">&copy; ' +
+				year +
+				" lpo.plus. All rights reserved.</p></div></div></body></html>";
+
 			var sendOutEmailJSON = {
 				to: partnerEmail,
-				cc: "",
+				cc: ["michael.mcdaid@mailplus.com.au", "kerry.oneill@mailplus.com.au"],
 				subject: emailSubject,
 				html: emailBody,
 				metadata: {
-					lpoId: lpoInternalId,
+					lpoId: lpoParentId,
 					customerId: customerInternalId,
-					jobId: jobRequestId
+					jobId: lpoPlusJobId
 				}
 			};
 			var firebaseUpdateURL =
@@ -186,45 +202,39 @@ define([
 			});
 
 			//Send SMS
-			// var accountSid = "ACc4fb93dc175b8f9066ed80bf0caecdb7";
-			// var authToken = "7e1ef13535f1f7256eccf07581b01f12";
-			// // Combine credentials
-			// var rawString = accountSid + ":" + authToken;
+			var accountSid = "ACc4fb93dc175b8f9066ed80bf0caecdb7";
+			var authToken = "7e1ef13535f1f7256eccf07581b01f12";
+			// Combine credentials
+			var rawString = accountSid + ":" + authToken;
 
-			// // Encode to Base64
-			// var base64Encoded = encode.convert({
-			// 	string: rawString,
-			// 	inputEncoding: encode.Encoding.UTF_8,
-			// 	outputEncoding: encode.Encoding.BASE_64
-			// });
+			// Encode to Base64
+			var base64Encoded = encode.convert({
+				string: rawString,
+				inputEncoding: encode.Encoding.UTF_8,
+				outputEncoding: encode.Encoding.BASE_64
+			});
 
-			// var authHeader = "Basic " + base64Encoded;
-			// var smsBody = "New Job Request for " + business_name;
-			// smsBody +=
-			// 	"You have received a new job request for " +
-			// 	business_name +
-			// 	". Please click the link below to view the details of the request and accept or reject it. \n\n" +
-			// 	jobRequestPageURL;
-			// var apiResponse = https.post({
-			// 	url:
-			// 		"https://api.twilio.com/2010-04-01/Accounts/" +
-			// 		accountSid +
-			// 		"/Messages",
-			// 	body: {
-			// 		Body: smsBody,
-			// 		To: partnerPhone,
-			// 		From: "+61488883115"
-			// 	},
-			// 	headers: {
-			// 		"Content-Type": "application/x-www-form-urlencoded",
-			// 		Authorization: authHeader
-			// 	}
-			// });
+			var authHeader = "Basic " + base64Encoded;
+			var smsBody =
+				"Message from LPO.PLUS for " + business_name + " from " + lpoName;
+			smsBody += "\n\n" + message + "\n\n";
+			var apiResponse = https.post({
+				url: "	" + accountSid + "/Messages",
+				body: {
+					Body: smsBody,
+					To: partnerPhone,
+					From: "+61488883115"
+				},
+				headers: {
+					"Content-Type": "application/x-www-form-urlencoded",
+					Authorization: authHeader
+				}
+			});
 
-			// log.debug({
-			// 	title: "Twilio API Response",
-			// 	details: JSON.stringify(apiResponse)
-			// });
+			log.debug({
+				title: "Twilio API Response",
+				details: JSON.stringify(apiResponse)
+			});
 
 			var returnObj = {
 				success: true,
