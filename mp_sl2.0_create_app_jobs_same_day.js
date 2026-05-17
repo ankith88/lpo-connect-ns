@@ -84,6 +84,8 @@ define([
 
 			//{"job_type":"one-off","instructions":"","lpo_id":"1974139","script":"2529","deploy":"1","billing":"lpo","preferred_time":"14:20","compid":"1048144","job_id":"5Z33TyUuhHAybjNpuq87","service":"site-to-lpo","ns-at":"AAEJ7tMQUHvAyCn2ri9BfAPTI9fsSABUWunIfqrEj4J_2hC-e3o","customer_id":"1994297","request_id":"A6Rc4aVdLvwcSlYbEjpZ"}
 
+			//{"job_type":"one-off","date":"2026-05-14","accepted_cust_id":"","instructions":"","lpo_id":"1938288","service_name":"site-to-lpo","service_internal_id":"133135","script":"2529","deploy":"1","billing":"lpo","preferred_time":"","compid":"1048144","job_id":"AllSlxMMtbgdY3R1yyKT","ns-at":"AAEJ7tMQUHvAyCn2ri9BfAPTI9fsSABUWunIfqrEj4J_2hC-e3o","customer_id":"1999722","request_id":"ygspGe26wd5EVm2eGqZr"}
+
 			//GENERATE THE ACCESS TOKEN USING LOGIN CREDENTIALS
 			var tokenBody =
 				'{"email":"ankith.ravindran@mailplus.com.au","password":"123456aA","returnSecureToken":true}';
@@ -124,6 +126,16 @@ define([
 			});
 			var companyLinkedZee = customerRecord.getValue({
 				fieldId: "partner"
+			});
+			var companyParent = customerRecord.getValue({
+				fieldId: "parent"
+			});
+			var parentCustomerRecord = record.load({
+				type: "customer",
+				id: companyParent
+			});
+			var lpoLinkedZees = parentCustomerRecord.getValue({
+				fieldId: "custentity_lpo_linked_franchisees"
 			});
 
 			//Load Site Address
@@ -434,6 +446,10 @@ define([
 				title: "activeOperator",
 				details: activeOperator
 			});
+			log.debug({
+				title: "lpoSuburbMappingJSON",
+				details: lpoSuburbMappingJSON
+			});
 
 			if (serviceType == "site-to-lpo") {
 				//PMPO
@@ -488,7 +504,8 @@ define([
 					customerContactPhone,
 					jobDate,
 					stopNameForPickup,
-					activeOperator
+					activeOperator,
+					2
 				);
 				log.debug({
 					title: "Pickup Job ID",
@@ -526,7 +543,8 @@ define([
 					lpoContactPhone,
 					jobDate,
 					stopNameForDelivery,
-					activeOperator
+					activeOperator,
+					2
 				);
 
 				log.debug({
@@ -691,7 +709,8 @@ define([
 					lpoContactPhone,
 					jobDate,
 					stopNameForPickup,
-					activeOperator
+					activeOperator,
+					2
 				);
 
 				log.debug({
@@ -729,7 +748,8 @@ define([
 					customerContactPhone,
 					jobDate,
 					stopNameForDelivery,
-					activeOperator
+					activeOperator,
+					2
 				);
 				log.debug({
 					title: "Delivery Job ID",
@@ -892,7 +912,8 @@ define([
 					lpoContactPhone,
 					jobDate,
 					stopNameForPickup,
-					activeOperator
+					activeOperator,
+					4
 				);
 
 				log.debug({
@@ -931,7 +952,8 @@ define([
 					customerContactPhone,
 					jobDate,
 					stopNameForDeliveryPickup,
-					activeOperator
+					activeOperator,
+					4
 				);
 				log.debug({
 					title: "Delivery Job ID",
@@ -967,7 +989,8 @@ define([
 					customerContactPhone,
 					jobDate,
 					stopNameForDeliveryPickup,
-					activeOperator
+					activeOperator,
+					4
 				);
 				log.debug({
 					title: "Pickup Job ID",
@@ -1005,7 +1028,8 @@ define([
 					lpoContactPhone,
 					jobDate,
 					stopNameForDelivery,
-					activeOperator
+					activeOperator,
+					4
 				);
 
 				log.debug({
@@ -1458,7 +1482,8 @@ define([
 		contactPhone,
 		lpoServiceDate,
 		stopNamePreCreated,
-		lpoLinkedZeesOperators
+		lpoLinkedZeesOperators,
+		totalStopsForJob
 	) {
 		log.debug({
 			title: "createAppJobs",
@@ -1727,6 +1752,7 @@ define([
 		apiBody += "],";
 
 		apiBody += '"stop_name": "' + stopNamePreCreated + '",';
+		apiBody += '"service_leg": "' + serviceLeg + '",';
 		apiBody += '"address": {';
 		apiBody += '"address1": "' + service_leg_addr_st_num + '",';
 		apiBody += '"suburb": "' + service_leg_addr_suburb + '",';
@@ -1738,6 +1764,7 @@ define([
 		apiBody += '"job_group": {';
 		apiBody += '"ns_id": "' + app_job_group_id2 + '",';
 		apiBody += '"name": "' + app_job_group_name + '",';
+		apiBody += '"total_stops": "' + totalStopsForJob + '",';
 		apiBody += '"status": "Scheduled"';
 		apiBody += "}";
 		apiBody += "}]}";

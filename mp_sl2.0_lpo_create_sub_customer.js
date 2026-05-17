@@ -198,6 +198,7 @@ define([
 			var lpoSuburbMappingJSON = [];
 			var finalZeeIDArray = [];
 			var lpoLinkedZeeTextArray = [];
+			var linkedZeeDetails = '"linkedZeeDetails": {"arrayValue": { "values": [';
 			for (var x = 0; x < lpoLinkedZeesArray.length; x++) {
 				var partnerRecord = record.load({
 					type: record.Type.PARTNER,
@@ -207,9 +208,23 @@ define([
 				var zeeJSONString = partnerRecord.getValue({
 					fieldId: "custentity_ap_suburbs_json"
 				});
-				lpoLinkedZeeTextArray[x] = partnerRecord.getValue({
+				var zeeName = partnerRecord.getValue({
 					fieldId: "companyname"
 				});
+
+				var mainContactName = partnerRecord.getValue({
+					fieldId: "custentity3"
+				});
+				var partnerPhone = partnerRecord.getValue({
+					fieldId: "custentity2"
+				});
+				var partnerEmail = partnerRecord.getValue({
+					fieldId: "email"
+				});
+
+				partnerPhone = partnerPhone.replace(/ /g, "");
+				partnerPhone = partnerPhone.slice(1);
+				partnerPhone = "+61" + partnerPhone;
 
 				log.audit({
 					title: "zeeJSONString",
@@ -249,6 +264,14 @@ define([
 
 				if (suburbStatePostcodeExistsReturn) {
 					finalZeeIDArray.push(lpoLinkedZeesArray[x]);
+					lpoLinkedZeeTextArray.push(zeeName);
+					var zeeContactString =
+						mainContactName + "," + partnerEmail + "," + partnerPhone;
+					linkedZeeDetails += '{"stringValue": "' + zeeContactString + '"},';
+					log.debug({
+						title: "zeeContactString",
+						details: zeeContactString
+					});
 					zeeJSON.forEach(function (suburb) {
 						lpoSuburbMappingJSON.push(suburb);
 						if (!isNullorEmpty(suburb.primary_op)) {
@@ -262,7 +285,21 @@ define([
 						}
 					});
 				}
+
+				log.audit({
+					title: "activeOperator",
+					details: activeOperator
+				});
+				log.audit({
+					title: "finalZeeIDArray",
+					details: finalZeeIDArray
+				});
 			}
+			//remove thee last character if it is a comma
+			if (linkedZeeDetails.slice(-1) == ",") {
+				linkedZeeDetails = linkedZeeDetails.slice(0, -1);
+			}
+			linkedZeeDetails += "]}}";
 
 			activeOperator = removeDuplicates(activeOperator);
 
@@ -273,6 +310,10 @@ define([
 			log.audit({
 				title: "finalZeeIDArray",
 				details: finalZeeIDArray
+			});
+			log.audit({
+				title: "lpoLinkedZeeTextArray",
+				details: lpoLinkedZeeTextArray
 			});
 
 			serviceDateEffective = getDateStoreNS();
@@ -847,9 +888,23 @@ define([
 			var localmileAdditionalBagInternalID = null;
 			var localmileAdditionalBagRate = 0;
 
+			log.audit({
+				title: "finalZeeIDArray.length",
+				details: finalZeeIDArray.length
+			});
+
 			// if (siteServiveable == 'true') {
-			for (var i = 0; i < finalZeeIDArray.length; i++) {
-				zeeId = finalZeeIDArray[i];
+			for (var fza = 0; fza < finalZeeIDArray.length; fza++) {
+				log.debug({
+					title: "looping through finalZeeIDArray with index: " + fza,
+					details: "looping through finalZeeIDArray with index: " + fza
+				});
+				log.debug({
+					title: "Creating Referral Lead for Zee ID: " + finalZeeIDArray[fza],
+					details: "Creating Referral Lead for Zee ID: " + finalZeeIDArray[fza]
+				});
+
+				zeeId = finalZeeIDArray[fza];
 				leadZeeAssigned = zeeId;
 
 				var partnerRecord = record.load({
@@ -858,6 +913,9 @@ define([
 				});
 				zeeEmail = partnerRecord.getValue({
 					fieldId: "email"
+				});
+				zeeName = partnerRecord.getValue({
+					fieldId: "companyname"
 				});
 				mpExpActivated = partnerRecord.getValue({
 					fieldId: "custentity_zee_mp_exp_activated"
@@ -2645,117 +2703,124 @@ define([
 				);
 
 				//Additional LPO Bag
-				if (
-					!isNullorEmpty(serviceAdditonalLPOBag) &&
-					isNullorEmpty(lead_selected_service_text)
-				) {
-					var serviceRecord = record.create({
-						type: "customrecord_service",
-						isDynamic: true
-					});
-					serviceRecord.setValue({
-						fieldId: "name",
-						value: "Additional LPO Bag"
-					});
-					serviceRecord.setValue({
-						fieldId: "custrecord_service_price",
-						value: serviceAdditonalLPOBag.rate
-					});
-					serviceRecord.setValue({
-						fieldId: "custrecord_service",
-						value: 155
-					});
-					serviceRecord.setValue({
-						fieldId: "custrecord_service_comm_reg",
-						value: newCommRegInternalId
-					});
-					serviceRecord.setValue({
-						fieldId: "custrecord_service_customer",
-						value: lpoScheduledServiceCustomerInternalID
-					});
-					serviceRecord.setValue({
-						fieldId: "custrecord_service_franchisee",
-						value: zeeId
-					});
-					serviceRecord.setValue({
-						fieldId: "custrecord_service_day_adhoc",
-						value: true
-					});
-					serviceRecord.setValue({
-						fieldId: "custrecord_service_day_freq_cycle",
-						value: 4
-					});
-					var excessParcelServiceInternalId = serviceRecord.save();
+				var serviceRecord = record.create({
+					type: "customrecord_service",
+					isDynamic: true
+				});
+				serviceRecord.setValue({
+					fieldId: "name",
+					value: "Additional LPO Bag"
+				});
+				serviceRecord.setValue({
+					fieldId: "custrecord_service_price",
+					value: serviceAdditonalLPOBag.rate
+				});
+				serviceRecord.setValue({
+					fieldId: "custrecord_service",
+					value: 155
+				});
+				serviceRecord.setValue({
+					fieldId: "custrecord_service_comm_reg",
+					value: newCommRegInternalId
+				});
+				serviceRecord.setValue({
+					fieldId: "custrecord_service_customer",
+					value: lpoScheduledServiceCustomerInternalID
+				});
+				serviceRecord.setValue({
+					fieldId: "custrecord_service_franchisee",
+					value: zeeId
+				});
+				serviceRecord.setValue({
+					fieldId: "custrecord_service_day_adhoc",
+					value: true
+				});
+				serviceRecord.setValue({
+					fieldId: "custrecord_service_day_freq_cycle",
+					value: 4
+				});
+				var excessParcelServiceInternalId = serviceRecord.save();
 
-					log.audit({
-						title: "Excess Parcel Service Record Created",
-						details: excessParcelServiceInternalId
-					});
+				log.audit({
+					title: "Excess Parcel Service Record Created",
+					details: excessParcelServiceInternalId
+				});
 
-					localmileAdditionalBagInternalID = excessParcelServiceInternalId;
-					localmileAdditionalBagRate = serviceAdditonalLPOBag.rate;
+				localmileAdditionalBagInternalID = excessParcelServiceInternalId;
+				localmileAdditionalBagRate = serviceAdditonalLPOBag.rate;
 
-					//CREATE SERVICE CHANGE RECORD FOR Additional LPO Bag
-					var new_service_change_record = record.create({
-						type: "customrecord_servicechg",
-						isDynamic: true
-					});
+				log.audit({
+					title: "Localmile Additional Bag",
+					details: localmileAdditionalBagInternalID
+				});
+				log.audit({
+					title: "Localmile Additional Bag Rate",
+					details: localmileAdditionalBagRate
+				});
+
+				//CREATE SERVICE CHANGE RECORD FOR Additional LPO Bag
+				var new_service_change_record = record.create({
+					type: "customrecord_servicechg",
+					isDynamic: true
+				});
+				new_service_change_record.setValue({
+					fieldId: "custrecord_servicechg_date_effective",
+					value: serviceDateEffective
+				});
+				new_service_change_record.setValue({
+					fieldId: "custrecord_servicechg_service",
+					value: excessParcelServiceInternalId
+				});
+
+				new_service_change_record.setValue({
+					fieldId: "custrecord_servicechg_new_freq",
+					value: 6
+				});
+				if (billing == "customer") {
 					new_service_change_record.setValue({
-						fieldId: "custrecord_servicechg_date_effective",
-						value: serviceDateEffective
+						fieldId: "custrecord_servicechg_status",
+						value: 4 //Quote
 					});
-					new_service_change_record.setValue({
-						fieldId: "custrecord_servicechg_service",
-						value: excessParcelServiceInternalId
-					});
-
-					new_service_change_record.setValue({
-						fieldId: "custrecord_servicechg_new_freq",
-						value: 6
-					});
+				} else {
 					new_service_change_record.setValue({
 						fieldId: "custrecord_servicechg_status",
 						value: 2 //Active
 					});
-
-					new_service_change_record.setValue({
-						fieldId: "custrecord_servicechg_old_zee",
-						value: zeeId
-					});
-
-					new_service_change_record.setValue({
-						fieldId: "custrecord_servicechg_new_price",
-						value: serviceAdditonalLPOBag.rate
-					});
-					new_service_change_record.setValue({
-						fieldId: "custrecord_servicechg_new_freq",
-						value: 6
-					});
-					new_service_change_record.setValue({
-						fieldId: "custrecord_servicechg_comm_reg",
-						value: newCommRegInternalId
-					});
-					new_service_change_record.setValue({
-						fieldId: "custrecord_servicechg_created",
-						value: userId
-					});
-					new_service_change_record.setValue({
-						fieldId: "custrecord_servicechg_type",
-						value: "New Customer"
-					});
-					new_service_change_record.setValue({
-						fieldId: "custrecord_default_servicechg_record",
-						value: 1
-					});
-
-					var excessParcelServiceChangeRecordInternalId =
-						new_service_change_record.save();
-
-					log.audit({
-						title: "Additional LPO Bag",
-						details: excessParcelServiceChangeRecordInternalId
-					});
 				}
+
+				new_service_change_record.setValue({
+					fieldId: "custrecord_servicechg_old_zee",
+					value: zeeId
+				});
+
+				new_service_change_record.setValue({
+					fieldId: "custrecord_servicechg_new_price",
+					value: serviceAdditonalLPOBag.rate
+				});
+				new_service_change_record.setValue({
+					fieldId: "custrecord_servicechg_comm_reg",
+					value: newCommRegInternalId
+				});
+				new_service_change_record.setValue({
+					fieldId: "custrecord_servicechg_created",
+					value: userId
+				});
+				new_service_change_record.setValue({
+					fieldId: "custrecord_servicechg_type",
+					value: "New Customer"
+				});
+				new_service_change_record.setValue({
+					fieldId: "custrecord_default_servicechg_record",
+					value: 1
+				});
+
+				var excessParcelServiceChangeRecordInternalId =
+					new_service_change_record.save();
+
+				log.audit({
+					title: "Additional LPO Bag",
+					details: excessParcelServiceChangeRecordInternalId
+				});
 
 				if (
 					!isNullorEmpty(lpoScheduledServiceCustomerInternalID) &&
@@ -2806,14 +2871,14 @@ define([
 						details: url
 					});
 
-					var response = https.get({
-						url: url
-					});
+					// var response = https.get({
+					// 	url: url
+					// });
 
-					log.debug({
-						title: "response",
-						details: response
-					});
+					// log.debug({
+					// 	title: "response",
+					// 	details: response
+					// });
 
 					//Email Onboarding Team
 					var freqArray = "";
@@ -2878,20 +2943,20 @@ define([
 						"<br>Please follow up to ensure the customer is onboarded successfully.<br><br>";
 					emailBody += "Thank you,<br>The System";
 
-					email.send({
-						author: 112209, //MailPlus Team
-						body: emailBody,
-						recipients: [
-							"michael.mcdaid@mailplus.com.au",
-							"kerry.oneill@mailplus.com.au"
-						],
-						cc: [
-							"ankith.ravindran@mailplus.com.au",
-							"mailplusit@mailplus.com.au"
-						],
-						subject: emailSubject,
-						relatedRecords: { entityId: lpoScheduleServiceCustomerInternalID }
-					});
+					// email.send({
+					// 	author: 112209, //MailPlus Team
+					// 	body: emailBody,
+					// 	recipients: [
+					// 		"michael.mcdaid@mailplus.com.au",
+					// 		"kerry.oneill@mailplus.com.au"
+					// 	],
+					// 	cc: [
+					// 		"ankith.ravindran@mailplus.com.au",
+					// 		"mailplusit@mailplus.com.au"
+					// 	],
+					// 	subject: emailSubject,
+					// 	relatedRecords: { entityId: lpoScheduleServiceCustomerInternalID }
+					// });
 
 					//Load Comm Reg Record to get the SCF Link
 					var commRegRecord = record.load({
@@ -2906,48 +2971,107 @@ define([
 
 					if (lpoNewcustomerServiceType == "scheduled") {
 						if (billing == "lpo") {
-							//Send out SCF to LPO & Zee to show the scheduled service for the customer that the LPO is paying.
-
 							//Email to be sent to LPO and Zee about the scheduled service with the SCF Link
 							var emailSubjectToLPOZee =
 								"New Scheduled Customer - " + business_name;
-							var emailBodyToLPOZee =
-								"A new scheduled service has been created for the following customer:<br><br>";
-							emailBodyToLPOZee +=
-								"<b>Customer Name:</b> " + business_name + "<br>";
-							emailBodyToLPOZee +=
-								"<b>Contact Name:</b> " + first_name + " " + last_name + "<br>";
-							emailBodyToLPOZee +=
-								"<b>Contact Email:</b> " + contact_email + "<br>";
-							emailBodyToLPOZee +=
-								"<b>Contact Phone:</b> " + phone_number + "<br>";
-							emailBodyToLPOZee +=
-								"<b>Service Type:</b> " + leadSelectedServiceText + "<br>";
-							emailBodyToLPOZee +=
-								"<b>Service Date:</b> " + leadServiceDate + "<br>";
-							if (!isNullorEmpty(freqArray)) {
-								emailBodyToLPOZee +=
-									"<b>Service Frequency:</b> " + freqArray + "<br>";
-							}
-							emailBodyToLPOZee +=
-								'<b>Link to SCF:</b> <a href="' +
-								scfLink +
-								'" target="_blank">Click Here</a><br><br>';
 
-							email.send({
-								author: 112209, //MailPlus Team
-								body: emailBodyToLPOZee,
-								recipients: [parentLPOEmail, zeeEmail],
-								cc: [
-									"michael.mcdaid@mailplus.com.au",
-									"kerry.oneill@mailplus.com.au",
-									"mailplusit@mailplus.com.au"
-								],
+							var emailToLPOBody =
+								"<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>.email-container{font-family: 'Fraunces', serif;max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);border:1px solid #f0f0f0;}.header{background-color:#095c7b;padding:40px 20px;text-align:center;}.header h1{color:#ffffff;margin:0;font-size:24px;font-weight:300;letter-spacing:1px;}.header span{color:#EAF044;font-weight:bold;}.content{padding:40px 30px;color:#333333;line-height:1.6;}.greeting{font-size:18px;margin-bottom:20px;color:#095c7b;font-weight:bold;}.action-box{background-color:#f8fafb;border-radius:8px;padding:25px;margin:30px 0;border-left:4px solid #EAF044;}.button-container{text-align:center;margin:40px 0;}.btn-primary{background-color:#EAF044;color:#095c7b;padding:16px 32px;text-decoration:none;font-weight:bold;border-radius:8px;display:inline-block;transition:background 0.3s;box-shadow:0 4px 12px rgba(234,240,68,0.3);text-transform:uppercase;}.footer{background-color:#f4f7f8;padding:30px;text-align:center;font-size:12px;color:#999;}.footer p{margin:5px 0;}</style></head>";
+							var year = new Date().getFullYear();
+							//Send out SCF to LPO & Zee to show the scheduled service for the customer that the LPO is paying.
+							//This email notifies the LPO and Zee what the SCF link is for the scheduled service so they can track the onboarding process of the customer.
+							emailToLPOBody +=
+								'<body><div class="email-container"><div class="header"><h1>lpo<span>.plus</span></h1></div><div class="content"><div class="greeting">New Scheduled Customer</div><p>The recurring pickup you booked for ' +
+								business_name +
+								" has been scheduled. The Job request has been sent to the franchisee for acceptance.</p>";
+							//Job Details Section
+
+							var serviceTextInEmail = "";
+							if (leadSelectedServiceText == "AMPO") {
+								serviceTextInEmail = "LPO - TO - SITE";
+							} else if (leadSelectedServiceText == "PMPO") {
+								serviceTextInEmail = "SITE - TO - LPO";
+							} else if (leadSelectedServiceText == "Package: AMPO & PMPO") {
+								serviceTextInEmail = "Round Trip";
+							}
+							var prettyDate = formatDateToLongReadable(leadServiceDate);
+							emailToLPOBody +=
+								'<div class="job-details"><div class="detail-row"><span class="detail-label">Service:</span><span class="detail-value">' +
+								serviceTextInEmail +
+								'</span></div><div class="detail-row"><span class="detail-label">Date:</span><span class="detail-value">' +
+								prettyDate +
+								"</span></div>";
+							if (!isNullorEmpty(freqArray)) {
+								emailToLPOBody +=
+									'<div class="detail-row"><span class="detail-label">Frequency:</span><span class="detail-value">' +
+									freqArray +
+									"</span></div>";
+							}
+
+							emailBody += "</div>";
+
+							emailToLPOBody +=
+								'<div class="detail-row"><span class="detail-label">SCF Link:</span><span class="detail-value"><a href="' +
+								scfLink +
+								'" target="_blank">Click Here</a></span></div>';
+
+							emailToLPOBody +=
+								'<div class="footer"><p><strong>lpo.plus</strong> | Local logistics, made simple.</p><p>Powered by MailPlus Australia</p><p style="margin-top:15px;">&copy; ' +
+								year +
+								" lpo.plus. All rights reserved.</p></div></div></body></html>";
+
+							var sendOutEmailJSON = {
+								to: [parentLPOEmail],
 								subject: emailSubjectToLPOZee,
-								relatedRecords: {
-									entityId: lpoScheduleServiceCustomerInternalID
+								html: emailToLPOBody,
+								metadata: {
+									lpoId: parent_lpo,
+									customerId: lpoScheduleServiceCustomerInternalID
 								}
+							};
+							var firebaseUpdateURL =
+								"https://sendemailfromnetsuite-65tt2ndmpq-uc.a.run.app";
+
+							var apiHeaders = {};
+							apiHeaders["Content-Type"] = "application/json";
+							apiHeaders["x-api-key"] =
+								"f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123";
+							//f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123
+
+							var response = https.request({
+								method: https.Method.POST,
+								url: firebaseUpdateURL,
+								body: JSON.stringify(sendOutEmailJSON),
+								headers: apiHeaders
 							});
+
+							var myresponse_body = response.body;
+							var myresponse_code = response.code;
+
+							log.debug({
+								title: "myresponse_body",
+								details: myresponse_body
+							});
+
+							log.debug({
+								title: "myresponse_code",
+								details: myresponse_code
+							});
+
+							// email.send({
+							// 	author: 112209, //MailPlus Team
+							// 	body: emailBodyToLPOZee,
+							// 	recipients: [parentLPOEmail, zeeEmail],
+							// 	cc: [
+							// 		"michael.mcdaid@mailplus.com.au",
+							// 		"kerry.oneill@mailplus.com.au",
+							// 		"mailplusit@mailplus.com.au"
+							// 	],
+							// 	subject: emailSubjectToLPOZee,
+							// 	relatedRecords: {
+							// 		entityId: lpoScheduleServiceCustomerInternalID
+							// 	}
+							// });
 						} else if (billing == "customer") {
 							//Send out SCF to LPO, Zee, and Customer to show the scheduled service for the customer that the customer is paying.
 
@@ -2982,68 +3106,181 @@ define([
 							});
 							var emailHtml = response.body;
 
-							email.send({
-								author: 1822062, //Kerry
-								body: emailHtml,
-								recipients: contact_email,
+							// email.send({
+							// 	author: 1822062, //Kerry
+							// 	body: emailHtml,
+							// 	recipients: contact_email,
+							// 	subject: templateSubject,
+							// 	cc: [
+							// 		"michael.mcdaid@mailplus.com.au",
+							// 		"kerry.oneill@mailplus.com.au",
+							// 		"mailplusit@mailplus.com.au",
+							// 		parentLPOEmail
+							// 	],
+							// 	relatedRecords: {
+							// 		entityId: lpoScheduleServiceCustomerInternalID
+							// 	}
+							// });
+
+							var sendOutEmailJSON = {
+								to: contact_email,
+								cc: [parentLPOEmail],
 								subject: templateSubject,
-								cc: [
-									"michael.mcdaid@mailplus.com.au",
-									"kerry.oneill@mailplus.com.au",
-									"mailplusit@mailplus.com.au",
-									parentLPOEmail
-								],
-								relatedRecords: {
-									entityId: lpoScheduleServiceCustomerInternalID
+								html: emailHtml,
+								metadata: {
+									lpoId: parent_lpo,
+									customerId: lpoScheduleServiceCustomerInternalID
 								}
+							};
+							var firebaseUpdateURL =
+								"https://sendemailfromnetsuite-65tt2ndmpq-uc.a.run.app";
+
+							var apiHeaders = {};
+							apiHeaders["Content-Type"] = "application/json";
+							apiHeaders["x-api-key"] =
+								"f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123";
+							//f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123
+
+							var response = https.request({
+								method: https.Method.POST,
+								url: firebaseUpdateURL,
+								body: JSON.stringify(sendOutEmailJSON),
+								headers: apiHeaders
+							});
+
+							var myresponse_body = response.body;
+							var myresponse_code = response.code;
+
+							log.debug({
+								title: "myresponse_body",
+								details: myresponse_body
+							});
+
+							log.debug({
+								title: "myresponse_code",
+								details: myresponse_code
 							});
 
 							//Email to be sent to LPO and Zee about the scheduled service with the SCF Link and letting them know waiting for the customer the T&C's
 							var emailSubjectToLPOZee =
 								"New Scheduled Customer - " + business_name;
-							var emailBodyToLPOZee =
-								"A new scheduled service has been created for the following customer:<br><br>";
-							emailBodyToLPOZee +=
-								"<b>Customer Name:</b> " + business_name + "<br>";
-							emailBodyToLPOZee +=
-								"<b>Contact Name:</b> " + first_name + " " + last_name + "<br>";
-							emailBodyToLPOZee +=
-								"<b>Contact Email:</b> " + contact_email + "<br>";
-							emailBodyToLPOZee +=
-								"<b>Contact Phone:</b> " + phone_number + "<br>";
-							emailBodyToLPOZee +=
-								"<b>Service Type:</b> " + leadSelectedServiceText + "<br>";
-							emailBodyToLPOZee +=
-								"<b>Service Date:</b> " + leadServiceDate + "<br>";
-							if (!isNullorEmpty(freqArray)) {
-								emailBodyToLPOZee +=
-									"<b>Service Frequency:</b> " + freqArray + "<br>";
-							}
-							emailBodyToLPOZee +=
-								"<b>Customer is to Pay for the Service. Waiting for Customer to Accept T&C's before activating the service.</b><br><br>";
-							emailBodyToLPOZee +=
-								'<b>Link to SCF:</b> <a href="' +
-								scfLink +
-								'" target="_blank">Click Here</a><br><br>';
 
-							email.send({
-								author: 112209, //MailPlus Team
-								body: emailBodyToLPOZee,
-								recipients: [parentLPOEmail, zeeEmail],
-								cc: [
-									"michael.mcdaid@mailplus.com.au",
-									"kerry.oneill@mailplus.com.au",
-									"mailplusit@mailplus.com.au"
-								],
+							var emailToLPOBody =
+								"<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>.email-container{font-family: 'Fraunces', serif;max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);border:1px solid #f0f0f0;}.header{background-color:#095c7b;padding:40px 20px;text-align:center;}.header h1{color:#ffffff;margin:0;font-size:24px;font-weight:300;letter-spacing:1px;}.header span{color:#EAF044;font-weight:bold;}.content{padding:40px 30px;color:#333333;line-height:1.6;}.greeting{font-size:18px;margin-bottom:20px;color:#095c7b;font-weight:bold;}.action-box{background-color:#f8fafb;border-radius:8px;padding:25px;margin:30px 0;border-left:4px solid #EAF044;}.button-container{text-align:center;margin:40px 0;}.btn-primary{background-color:#EAF044;color:#095c7b;padding:16px 32px;text-decoration:none;font-weight:bold;border-radius:8px;display:inline-block;transition:background 0.3s;box-shadow:0 4px 12px rgba(234,240,68,0.3);text-transform:uppercase;}.footer{background-color:#f4f7f8;padding:30px;text-align:center;font-size:12px;color:#999;}.footer p{margin:5px 0;}</style></head>";
+							var year = new Date().getFullYear();
+							//Send out SCF to LPO & Zee to show the scheduled service for the customer that the LPO is paying.
+
+							emailToLPOBody +=
+								'<body><div class="email-container"><div class="header"><h1>lpo<span>.plus</span></h1></div><div class="content"><div class="greeting">New Scheduled Customer</div><p>The recurring job you booked for ' +
+								business_name +
+								" has been scheduled. The Job request has been sent to the franchisee for acceptance.</p>";
+							//Job Details Section
+
+							var serviceTextInEmail = "";
+							if (leadSelectedServiceText == "AMPO") {
+								serviceTextInEmail = "LPO - TO - SITE";
+							} else if (leadSelectedServiceText == "PMPO") {
+								serviceTextInEmail = "SITE - TO - LPO";
+							} else if (leadSelectedServiceText == "Package: AMPO & PMPO") {
+								serviceTextInEmail = "Round Trip";
+							}
+							var prettyDate = formatDateToLongReadable(leadServiceDate);
+							emailToLPOBody +=
+								'<div class="job-details"><div class="detail-row"><span class="detail-label">Service:</span><span class="detail-value">' +
+								serviceTextInEmail +
+								'</span></div><div class="detail-row"><span class="detail-label">Date:</span><span class="detail-value">' +
+								prettyDate +
+								"</span></div>";
+							if (!isNullorEmpty(freqArray)) {
+								emailToLPOBody +=
+									'<div class="detail-row"><span class="detail-label">Frequency:</span><span class="detail-value">' +
+									freqArray +
+									"</span></div>";
+							}
+
+							emailBody += "</div>";
+
+							emailToLPOBody +=
+								'<div class="detail-row"><span class="detail-label">SCF Link:</span><span class="detail-value"><a href="' +
+								scfLink +
+								'" target="_blank">Click Here</a></span></div>';
+
+							emailToLPOBody +=
+								'<div class="footer"><p><strong>lpo.plus</strong> | Local logistics, made simple.</p><p>Powered by MailPlus Australia</p><p style="margin-top:15px;">&copy; ' +
+								year +
+								" lpo.plus. All rights reserved.</p></div></div></body></html>";
+
+							var sendOutEmailJSON = {
+								to: [parentLPOEmail],
 								subject: emailSubjectToLPOZee,
-								relatedRecords: {
-									entityId: lpoScheduleServiceCustomerInternalID
+								html: emailToLPOBody,
+								metadata: {
+									lpoId: parent_lpo,
+									customerId: lpoScheduleServiceCustomerInternalID
 								}
+							};
+							var firebaseUpdateURL =
+								"https://sendemailfromnetsuite-65tt2ndmpq-uc.a.run.app";
+
+							var apiHeaders = {};
+							apiHeaders["Content-Type"] = "application/json";
+							apiHeaders["x-api-key"] =
+								"f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123";
+							//f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123
+
+							var response = https.request({
+								method: https.Method.POST,
+								url: firebaseUpdateURL,
+								body: JSON.stringify(sendOutEmailJSON),
+								headers: apiHeaders
 							});
+
+							var myresponse_body = response.body;
+							var myresponse_code = response.code;
+
+							log.debug({
+								title: "myresponse_body",
+								details: myresponse_body
+							});
+
+							log.debug({
+								title: "myresponse_code",
+								details: myresponse_code
+							});
+
+							// email.send({
+							// 	author: 112209, //MailPlus Team
+							// 	body: emailBodyToLPOZee,
+							// 	recipients: [parentLPOEmail, zeeEmail],
+							// 	cc: [
+							// 		"michael.mcdaid@mailplus.com.au",
+							// 		"kerry.oneill@mailplus.com.au",
+							// 		"mailplusit@mailplus.com.au"
+							// 	],
+							// 	subject: emailSubjectToLPOZee,
+							// 	relatedRecords: {
+							// 		entityId: lpoScheduleServiceCustomerInternalID
+							// 	}
+							// });
 						}
 					}
 				}
+
+				log.audit({
+					title:
+						'End of zee "' +
+						finalZeeIDArray[fza] +
+						'" Subcustomer Creation Process',
+					details:
+						"Subcustomer creation process completed for zee: " +
+						finalZeeIDArray[fza]
+				});
 			}
+
+			log.audit({
+				title: "All Subcustomer Creation Process Completed",
+				details: "Subcustomer creation process completed for all zees."
+			});
 
 			var customerDetails = '{"fields": {';
 
@@ -3129,6 +3366,15 @@ define([
 				localmileAdditionalBagRate +
 				'"},';
 
+			//Customer Contact Details
+			customerDetails +=
+				'"firstName": {"stringValue": "' + first_name + '"},';
+			customerDetails +=
+				'"first_name": {"stringValue": "' + first_name + '"},';
+			customerDetails +=
+				'"lastName": {"stringValue": "' + last_name + '"},';
+			customerDetails +=
+				'"last_name": {"stringValue": "' + last_name + '"},';
 			//LPO Address Fields
 			customerDetails +=
 				'"lpoAddress1": {"stringValue": "' + lpoAddress1 + '"},';
@@ -3145,11 +3391,11 @@ define([
 				'"lpoContactEmail": {"stringValue": "' + lpoContactEmail + '"},';
 			if (billing == "customer") {
 				customerDetails +=
-					'"status": {"stringValue": "Awaiting T&C\'s to be Accepted"}';
+					'"status": {"stringValue": "Awaiting T&C\'s to be Accepted"},';
 			} else {
-				customerDetails += '"status": {"stringValue": "Active"}';
+				customerDetails += '"status": {"stringValue": "Active"},';
 			}
-
+			customerDetails += linkedZeeDetails;
 			customerDetails += "}}";
 
 			log.debug({
@@ -3157,66 +3403,66 @@ define([
 				details: customerDetails
 			});
 
-			if (billing == "customer" && lpoNewcustomerServiceType != "scheduled") {
-				//Create Lead Firebase Record in Firestore
-				// Tue, May 5, 2026 @ 11:28:28 AM [UPDATE] - No More access to LocalMile from LPO.PLUS application.
-				// var url =
-				//     'https://firestore.googleapis.com/v1/projects/localmile-express/databases/(default)/documents/companies?documentId=' + lpoScheduledServiceCustomerInternalID.toString();
-				// var headerObj = {
-				//     name: 'Content-Type',
-				//     value: 'application/json'
-				// };
-				// var response = https.post({
-				//     url: url,
-				//     body: customerDetails,
-				//     headers: headerObj
-				// });
-				// log.debug({
-				//     title: 'response',
-				//     details: response
-				// });
-				//Send Email to Customer with link to join LocalMile
-				// if (!isNullorEmpty(contact_email)) {
-				//     var localmileJoinLink = 'https://localmile.com.au/auth/join?companyId=' + lpoScheduledServiceCustomerInternalID.toString();
-				//     // TODO: Send Welcome Email to customer for LocalMile Portal Access
-				//     var subject = lpoName + ' Post Office has set up your MailPlus account';
-				//     var emailBody = 'Hi ' + first_name + ',<br><br>';
-				//     emailBody += 'Great news – ' + lpoName + ', Post Office has requested to activate a MailPlus account for you. <br><br>';
-				//     emailBody += 'This gives you access to book ad hoc parcel collections to and from  ' + lpoName + ' Post Office whenever you need them – all managed through our online platform, <b>LocalMile</b><br><br>';
-				//     emailBody += '<b style="font-size: 12pt;color: #095c7b;">Click below to activate your account and get started. </b><br>';
-				//     emailBody += '<b><a href="' + localmileJoinLink + '" target="_blank">Join LocalMile</a></b><br></br>';
-				//     emailBody += 'Once you\'re set up, you can book collections on demand, manage your bookings, and communicate with your driver all in one place. No lock-in contracts, just convenience when you need it. No more hunting for parking. No more queues. Just reliable collections so you can focus on running your business.<br><br>';
-				//     emailBody += '<b style="font-size: 12pt;color: #095c7b;">Who are MailPlus?  </b><br>';
-				//     emailBody += 'We\'re a local courier service working with local Post Offices to make parcel collection and lodgement effortless. <br><br>';
-				//     emailBody += '<b style="font-size: 12pt;color: #095c7b;">Need help?   </b><br>';
-				//     emailBody += 'Simply reply to this email or call <b>1300 65 65 95</b>, option 2, to speak to our Customer Service team. <br><br>';
-				//     emailBody += 'Thank you,<br>';
-				//     emailBody += 'The MailPlus Team<br><br>';
-				//     email.send({
-				//         author: 1937051, //LocalMile
-				//         body: emailBody,
-				//         recipients: contact_email,
-				//         subject: subject,
-				//         relatedRecords: { entityId: lpoScheduledServiceCustomerInternalID },
-				//     })
-				//     //Send Email to LPO & Kerry/Michael about letting them know an email sent to the end customer to join LocalMile.
-				//     var subjectToLPOKerryMichael = 'LocalMile Invitation Sent to Customer - ' + business_name;
-				//     var emailBodyToLPOKerryMichael = 'An email invitation to join LocalMile has been sent to the customer for the following scheduled service:<br><br>';
-				//     emailBodyToLPOKerryMichael += '<b>Customer Name:</b> ' + business_name + '<br>';
-				//     emailBodyToLPOKerryMichael += '<b>Contact Name:</b> ' + first_name + ' ' + last_name + '<br>';
-				//     emailBodyToLPOKerryMichael += '<b>Contact Email:</b> ' + contact_email + '<br>';
-				//     emailBodyToLPOKerryMichael += '<b>Contact Phone:</b> ' + phone_number + '<br>';
-				//     emailBodyToLPOKerryMichael += 'Thank you,<br>The System';
-				//     email.send({
-				//         author: 1937051, //LocalMile
-				//         body: emailBodyToLPOKerryMichael,
-				//         recipients: [parentLPOEmail, 'michael.mcdaid@mailplus.com.au', 'kerry.oneill@mailplus.com.au'],
-				//         cc: ['mailplusit@mailplus.com.au'],
-				//         subject: subjectToLPOKerryMichael,
-				//         relatedRecords: { entityId: lpoScheduledServiceCustomerInternalID },
-				//     })
-				// }
-			}
+			// if (billing == "customer" && lpoNewcustomerServiceType != "scheduled") {
+			//Create Lead Firebase Record in Firestore
+			// Tue, May 5, 2026 @ 11:28:28 AM [UPDATE] - No More access to LocalMile from LPO.PLUS application.
+			// var url =
+			//     'https://firestore.googleapis.com/v1/projects/localmile-express/databases/(default)/documents/companies?documentId=' + lpoScheduledServiceCustomerInternalID.toString();
+			// var headerObj = {
+			//     name: 'Content-Type',
+			//     value: 'application/json'
+			// };
+			// var response = https.post({
+			//     url: url,
+			//     body: customerDetails,
+			//     headers: headerObj
+			// });
+			// log.debug({
+			//     title: 'response',
+			//     details: response
+			// });
+			//Send Email to Customer with link to join LocalMile
+			// if (!isNullorEmpty(contact_email)) {
+			//     var localmileJoinLink = 'https://localmile.com.au/auth/join?companyId=' + lpoScheduledServiceCustomerInternalID.toString();
+			//     // TODO: Send Welcome Email to customer for LocalMile Portal Access
+			//     var subject = lpoName + ' Post Office has set up your MailPlus account';
+			//     var emailBody = 'Hi ' + first_name + ',<br><br>';
+			//     emailBody += 'Great news – ' + lpoName + ', Post Office has requested to activate a MailPlus account for you. <br><br>';
+			//     emailBody += 'This gives you access to book ad hoc parcel collections to and from  ' + lpoName + ' Post Office whenever you need them – all managed through our online platform, <b>LocalMile</b><br><br>';
+			//     emailBody += '<b style="font-size: 12pt;color: #095c7b;">Click below to activate your account and get started. </b><br>';
+			//     emailBody += '<b><a href="' + localmileJoinLink + '" target="_blank">Join LocalMile</a></b><br></br>';
+			//     emailBody += 'Once you\'re set up, you can book collections on demand, manage your bookings, and communicate with your driver all in one place. No lock-in contracts, just convenience when you need it. No more hunting for parking. No more queues. Just reliable collections so you can focus on running your business.<br><br>';
+			//     emailBody += '<b style="font-size: 12pt;color: #095c7b;">Who are MailPlus?  </b><br>';
+			//     emailBody += 'We\'re a local courier service working with local Post Offices to make parcel collection and lodgement effortless. <br><br>';
+			//     emailBody += '<b style="font-size: 12pt;color: #095c7b;">Need help?   </b><br>';
+			//     emailBody += 'Simply reply to this email or call <b>1300 65 65 95</b>, option 2, to speak to our Customer Service team. <br><br>';
+			//     emailBody += 'Thank you,<br>';
+			//     emailBody += 'The MailPlus Team<br><br>';
+			//     email.send({
+			//         author: 1937051, //LocalMile
+			//         body: emailBody,
+			//         recipients: contact_email,
+			//         subject: subject,
+			//         relatedRecords: { entityId: lpoScheduledServiceCustomerInternalID },
+			//     })
+			//     //Send Email to LPO & Kerry/Michael about letting them know an email sent to the end customer to join LocalMile.
+			//     var subjectToLPOKerryMichael = 'LocalMile Invitation Sent to Customer - ' + business_name;
+			//     var emailBodyToLPOKerryMichael = 'An email invitation to join LocalMile has been sent to the customer for the following scheduled service:<br><br>';
+			//     emailBodyToLPOKerryMichael += '<b>Customer Name:</b> ' + business_name + '<br>';
+			//     emailBodyToLPOKerryMichael += '<b>Contact Name:</b> ' + first_name + ' ' + last_name + '<br>';
+			//     emailBodyToLPOKerryMichael += '<b>Contact Email:</b> ' + contact_email + '<br>';
+			//     emailBodyToLPOKerryMichael += '<b>Contact Phone:</b> ' + phone_number + '<br>';
+			//     emailBodyToLPOKerryMichael += 'Thank you,<br>The System';
+			//     email.send({
+			//         author: 1937051, //LocalMile
+			//         body: emailBodyToLPOKerryMichael,
+			//         recipients: [parentLPOEmail, 'michael.mcdaid@mailplus.com.au', 'kerry.oneill@mailplus.com.au'],
+			//         cc: ['mailplusit@mailplus.com.au'],
+			//         subject: subjectToLPOKerryMichael,
+			//         relatedRecords: { entityId: lpoScheduledServiceCustomerInternalID },
+			//     })
+			// }
+			// }
 			// }
 
 			var urlCereateCustomerSubCollection =
@@ -3465,6 +3711,80 @@ define([
 		}
 
 		return state_id;
+	}
+
+	function getOrdinalSuffix(day) {
+		if (day % 100 >= 11 && day % 100 <= 13) {
+			return "th";
+		}
+
+		switch (day % 10) {
+			case 1:
+				return "st";
+			case 2:
+				return "nd";
+			case 3:
+				return "rd";
+			default:
+				return "th";
+		}
+	}
+
+	function formatDateToLongReadable(dateStr) {
+		if (isNullorEmpty(dateStr)) {
+			return "";
+		}
+
+		var parts = dateStr.split("-");
+		if (parts.length !== 3) {
+			return dateStr;
+		}
+
+		var year = parseInt(parts[0], 10);
+		var monthIndex = parseInt(parts[1], 10) - 1;
+		var day = parseInt(parts[2], 10);
+
+		if (isNaN(year) || isNaN(monthIndex) || isNaN(day)) {
+			return dateStr;
+		}
+
+		var weekdayNames = [
+			"Sunday",
+			"Monday",
+			"Tuesday",
+			"Wednesday",
+			"Thursday",
+			"Friday",
+			"Saturday"
+		];
+
+		var monthNames = [
+			"January",
+			"February",
+			"March",
+			"April",
+			"May",
+			"June",
+			"July",
+			"August",
+			"September",
+			"October",
+			"November",
+			"December"
+		];
+
+		// Use UTC to avoid timezone shifts that can change weekday/date unexpectedly.
+		var parsedDate = new Date(Date.UTC(year, monthIndex, day));
+		var weekday = weekdayNames[parsedDate.getUTCDay()];
+		var month = monthNames[monthIndex];
+
+		if (isNullorEmpty(weekday) || isNullorEmpty(month)) {
+			return dateStr;
+		}
+
+		return (
+			weekday + ", " + day + getOrdinalSuffix(day) + " " + month + " " + year
+		);
 	}
 
 	return {

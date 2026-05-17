@@ -72,13 +72,28 @@ define([
 
 			//{"firstName":"B","compid":"1048144","job_id":"d1xtlegqYh2F0LYl8fnR","lpo_id":"1974139","service":"site-to-lpo","ns-at":"AAEJ7tMQhaB4QYR7Pw-EtSlrxcIMl2il8br6cxfmm6xmf7VP-1w","customer_id":"1995828","script":"2536","email":"ankith88+bvs@gmail.com","deploy":"1"}
 
+			//{"date":"2026-05-14","lpo_id":"1938288","zee_id":"779884","script":"2536","deploy":"1","frequency":"null","firstName":"D","compid":"1048144","job_id":"s21ZmwszaB8cE5mVnJTf","service":"site-to-lpo","ns-at":"AAEJ7tMQhaB4QYR7Pw-EtSlrxcIMl2il8br6cxfmm6xmf7VP-1w","customer_id":"1999722","email":"ankith88+d@gmail.com"}
+
 			var lpoPlusJobId = context.request.parameters.job_id;
+			var zee_id = context.request.parameters.zee_id;
+			log.debug({
+				title: "zee_id",
+				details: zee_id
+			});
 			var lpoPlusJobDate = context.request.parameters.date;
 			var prettyDate = formatDateToLongReadable(lpoPlusJobDate);
 			var lpoPlusJobFrequency = context.request.parameters.frequency;
 			var lpoPlusService = context.request.parameters.service;
 			//Convert service to uppercase.
 			lpoPlusService = lpoPlusService.toUpperCase();
+			var appJobGroupServiceText = "";
+			if (lpoPlusService == "LPO-TO-SITE") {
+				appJobGroupServiceText = "AMPO";
+			} else if (lpoPlusService == "SITE-TO-LPO") {
+				appJobGroupServiceText = "PMPO";
+			} else if (lpoPlusService == "ROUND TRIP") {
+				appJobGroupServiceText = "Package: AMPO & PMPO";
+			}
 			var contactEmail = context.request.parameters.email;
 			var contactFirstName = context.request.parameters.firstName;
 			var lpoParentId = context.request.parameters.lpo_id;
@@ -141,10 +156,110 @@ define([
 				});
 			}
 
-			var appJobGroupId = context.request.parameters.appJobGroupId;
-			var message = context.request.parameters.message;
+			var originalCustomerInternalIdFromLPODB =
+				context.request.parameters.customer_id;
 
-			var customerInternalId = context.request.parameters.customer_id;
+			var customerRecord = record.load({
+				type: "customer",
+				id: originalCustomerInternalIdFromLPODB
+			});
+			var business_name = customerRecord.getValue({
+				fieldId: "companyname"
+			});
+			var parentCustomerInternalId = customerRecord.getValue({
+				fieldId: "parent"
+			});
+			var partnerID = customerRecord.getValue({
+				fieldId: "partner"
+			});
+
+			log.debug({
+				title: "business_name",
+				details: business_name
+			});
+			log.debug({
+				title: "parentCustomerInternalId",
+				details: parentCustomerInternalId
+			});
+			log.debug({
+				title: "partnerID",
+				details: partnerID
+			});
+			if (isNullorEmpty(zee_id)) {
+				zee_id = partnerID;
+			}
+
+			//Search Name:
+			var localMileSubCustomersServiceListSearch = search.load({
+				type: "customer",
+				id: "customsearch_localmile_sub_cust_services"
+			});
+			// if (isNullorEmpty(localMileJobID)) {
+			localMileSubCustomersServiceListSearch.filters.push(
+				search.createFilter({
+					name: "internalid",
+					join: "parentCustomer",
+					operator: search.Operator.ANYOF,
+					values: parentCustomerInternalId
+				})
+			);
+			// }
+			// localMileSubCustomersServiceListSearch.filters.push(
+			// 	search.createFilter({
+			// 		name: "companyname",
+			// 		join: null,
+			// 		operator: search.Operator.IS,
+			// 		values: business_name
+			// 	})
+			// );
+			localMileSubCustomersServiceListSearch.filters.push(
+				search.createFilter({
+					name: "partner",
+					join: null,
+					operator: search.Operator.IS,
+					values: zee_id
+				})
+			);
+
+			var subCustomerInternalID = null;
+			var acceptedFranchiseeServiceID = null;
+			localMileSubCustomersServiceListSearch.run().each(function (resultSet) {
+				log.debug({
+					title: "Inside Search",
+					details: resultSet
+				});
+
+				subCustomerInternalID = resultSet.getValue({
+					name: "internalid"
+				});
+
+				var serviceName = resultSet.getValue({
+					name: "name",
+					join: "CUSTRECORD_SERVICE_CUSTOMER"
+				});
+
+				if (appJobGroupServiceText == serviceName) {
+					acceptedFranchiseeServiceID = resultSet.getValue({
+						name: "internalid",
+						join: "CUSTRECORD_SERVICE_CUSTOMER"
+					});
+				}
+
+				return true;
+			});
+			// }
+
+			log.debug({
+				title: "Sub Customer Internal ID",
+				details: subCustomerInternalID
+			});
+			log.debug({
+				title: "Accepted Franchisee Service ID",
+				details: acceptedFranchiseeServiceID
+			});
+
+			customerInternalId = subCustomerInternalID;
+
 			var customerRecord = record.load({
 				type: "customer",
 				id: customerInternalId
@@ -157,6 +272,9 @@ define([
 			});
 			var customerEmail = customerRecord.getValue({
 				fieldId: "email"
+			});
+			var parentCustomerInternalId = customerRecord.getValue({
+				fieldId: "parent"
 			});
 
 			//Get Contact Details
@@ -226,14 +344,59 @@ define([
 			partnerPhone = partnerPhone.slice(1);
 			partnerPhone = "+61" + partnerPhone;
 
+			// var jobDetails = '{"fields": {';
+			// jobDetails +=
+			// 	'"serviceInternalId": {"stringValue": "' +
+			// 	acceptedFranchiseeServiceID +
+			// 	'"},';
+			// jobDetails +=
+			// 	'"jobAcceptedCustInternalId": {"stringValue": "' +
+			// 	customerInternalId +
+			// 	'"},';
+			// jobDetails += "}}";
+
+			// log.debug({
+			// 	title: "jobDetails for LPO Hub Update",
+			// 	details: jobDetails
+			// });
+
+			// var firebaseUpdateURL =
+			// 	"https://firestore.googleapis.com/v1/projects/mp-lpo-connect/databases/lpoconnect/documents/jobs/" +
+			// 	lpoPlusJobId +
+			// 	"?&updateMask.fieldPaths=serviceInternalId&updateMask.fieldPaths=jobAcceptedCustInternalId";
+			// var apiHeaders = {};
+			// apiHeaders["Content-Type"] = "application/json";
+			// apiHeaders["Accept"] = "*/*";
+			// apiHeaders["X-HTTP-Method-Override"] = "PATCH";
+
+			// var response = https.request({
+			// 	method: https.Method.POST,
+			// 	url: firebaseUpdateURL,
+			// 	body: jobDetails,
+			// 	headers: apiHeaders
+			// });
+
+			// var myresponse_body = response.body;
+			// var myresponse_code = response.code;
+
+			// log.debug({
+			// 	title: "myresponse_body",
+			// 	details: myresponse_body
+			// });
+
+			// log.debug({
+			// 	title: "myresponse_code",
+			// 	details: myresponse_code
+			// });
+
 			//Send Email to LPO and end customer letting them know the job request has been accepted by the franchisee.
 
 			var emailToCustomerSubject =
-				"Booking confirmed — " + business_name + " (" + lpoPlusService + ")";
+				"Booking confirmed — " + " (" + lpoPlusService + ")";
 
 			//Send Email to End Customer
 			var emailToCustomerBody =
-				"<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>.email-container{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);border:1px solid #f0f0f0;}.header{background-color:#095c7b;padding:40px 20px;text-align:center;}.header h1{color:#ffffff;margin:0;font-size:24px;font-weight:300;letter-spacing:1px;}.header span{color:#EAF044;font-weight:bold;}.content{padding:40px 30px;color:#333333;line-height:1.6;}.greeting{font-size:18px;margin-bottom:20px;color:#095c7b;font-weight:bold;}.action-box{background-color:#f8fafb;border-radius:8px;padding:25px;margin:30px 0;border-left:4px solid #EAF044;}.button-container{text-align:center;margin:40px 0;}.btn-primary{background-color:#EAF044;color:#095c7b;padding:16px 32px;text-decoration:none;font-weight:bold;border-radius:8px;display:inline-block;transition:background 0.3s;box-shadow:0 4px 12px rgba(234,240,68,0.3);text-transform:uppercase;}.footer{background-color:#f4f7f8;padding:30px;text-align:center;font-size:12px;color:#999;}.footer p{margin:5px 0;}/* Reminder note — only appears for recurring */ .reminder-note { background: #EBF4FB; border-radius: 8px; padding: 16px 20px; margin: 24px 0; font-size: 14px; display: flex; gap: 14px; align-items: flex-start; } .reminder-note .icon { width: 32px; height: 32px; background: var(--navy); color: var(--amber-bright); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; font-weight: 700; } .reminder-note p { margin: 0; line-height: 1.55; } .reminder-note p strong { color: var(--navy); }.job-details { background-color: #f8fafb; border-radius: 8px; padding: 25px; margin: 30px 0; border-left: 4px solid #EAF044; } .detail-row { margin-bottom: 12px; display: flex; } .detail-label { font-weight: bold; width: 120px; color: #666; font-size: 13px; text-transform: uppercase; } .detail-value { color: #095c7b; font-weight: 600; }</style></head>";
+				"<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>.email-container{font-family: 'Fraunces', serif;max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);border:1px solid #f0f0f0;}.header{background-color:#095c7b;padding:40px 20px;text-align:center;}.header h1{color:#ffffff;margin:0;font-size:24px;font-weight:300;letter-spacing:1px;}.header span{color:#EAF044;font-weight:bold;}.content{padding:40px 30px;color:#333333;line-height:1.6;}.greeting{font-size:18px;margin-bottom:20px;color:#095c7b;font-weight:bold;}.action-box{background-color:#f8fafb;border-radius:8px;padding:25px;margin:30px 0;border-left:4px solid #EAF044;}.button-container{text-align:center;margin:40px 0;}.btn-primary{background-color:#EAF044;color:#095c7b;padding:16px 32px;text-decoration:none;font-weight:bold;border-radius:8px;display:inline-block;transition:background 0.3s;box-shadow:0 4px 12px rgba(234,240,68,0.3);text-transform:uppercase;}.footer{background-color:#f4f7f8;padding:30px;text-align:center;font-size:12px;color:#999;}.footer p{margin:5px 0;}/* Reminder note — only appears for recurring */ .reminder-note { background: #EBF4FB; border-radius: 8px; padding: 16px 20px; margin: 24px 0; font-size: 14px; display: flex; gap: 14px; align-items: flex-start; } .reminder-note .icon { width: 32px; height: 32px; background: var(--navy); color: var(--amber-bright); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; font-weight: 700; } .reminder-note p { margin: 0; line-height: 1.55; } .reminder-note p strong { color: var(--navy); }.job-details { background-color: #f8fafb; border-radius: 8px; padding: 25px; margin: 30px 0; border-left: 4px solid #EAF044; } .detail-row { margin-bottom: 12px; display: flex; } .detail-label { font-weight: bold; width: 120px; color: #666; font-size: 13px; text-transform: uppercase; } .detail-value { color: #095c7b; font-weight: 600; }</style></head>";
 			var year = new Date().getFullYear();
 			//Email to LPO to let them know the job request has been accepted by the franchisee.
 
@@ -278,7 +441,7 @@ define([
 				html: emailToCustomerBody,
 				metadata: {
 					lpoId: lpoParentId,
-					customerId: customerInternalId,
+					customerId: originalCustomerInternalIdFromLPODB,
 					jobId: lpoPlusJobId
 				}
 			};
@@ -318,7 +481,7 @@ define([
 
 			//Send Email to End Customer
 			var emailToLPOBody =
-				"<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>.email-container{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);border:1px solid #f0f0f0;}.header{background-color:#095c7b;padding:40px 20px;text-align:center;}.header h1{color:#ffffff;margin:0;font-size:24px;font-weight:300;letter-spacing:1px;}.header span{color:#EAF044;font-weight:bold;}.content{padding:40px 30px;color:#333333;line-height:1.6;}.greeting{font-size:18px;margin-bottom:20px;color:#095c7b;font-weight:bold;}.action-box{background-color:#f8fafb;border-radius:8px;padding:25px;margin:30px 0;border-left:4px solid #EAF044;}.button-container{text-align:center;margin:40px 0;}.btn-primary{background-color:#EAF044;color:#095c7b;padding:16px 32px;text-decoration:none;font-weight:bold;border-radius:8px;display:inline-block;transition:background 0.3s;box-shadow:0 4px 12px rgba(234,240,68,0.3);text-transform:uppercase;}.footer{background-color:#f4f7f8;padding:30px;text-align:center;font-size:12px;color:#999;}.footer p{margin:5px 0;}/* Reminder note — only appears for recurring */ .reminder-note { background: #EBF4FB; border-radius: 8px; padding: 16px 20px; margin: 24px 0; font-size: 14px; display: flex; gap: 14px; align-items: flex-start; } .reminder-note .icon { width: 32px; height: 32px; background: var(--navy); color: var(--amber-bright); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; font-weight: 700; } .reminder-note p { margin: 0; line-height: 1.55; } .reminder-note p strong { color: var(--navy); }.job-details { background-color: #f8fafb; border-radius: 8px; padding: 25px; margin: 30px 0; border-left: 4px solid #EAF044; } .detail-row { margin-bottom: 12px; display: flex; } .detail-label { font-weight: bold; width: 120px; color: #666; font-size: 13px; text-transform: uppercase; } .detail-value { color: #095c7b; font-weight: 600; }</style></head>";
+				"<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>.email-container{font-family: 'Fraunces', serif;max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);border:1px solid #f0f0f0;}.header{background-color:#095c7b;padding:40px 20px;text-align:center;}.header h1{color:#ffffff;margin:0;font-size:24px;font-weight:300;letter-spacing:1px;}.header span{color:#EAF044;font-weight:bold;}.content{padding:40px 30px;color:#333333;line-height:1.6;}.greeting{font-size:18px;margin-bottom:20px;color:#095c7b;font-weight:bold;}.action-box{background-color:#f8fafb;border-radius:8px;padding:25px;margin:30px 0;border-left:4px solid #EAF044;}.button-container{text-align:center;margin:40px 0;}.btn-primary{background-color:#EAF044;color:#095c7b;padding:16px 32px;text-decoration:none;font-weight:bold;border-radius:8px;display:inline-block;transition:background 0.3s;box-shadow:0 4px 12px rgba(234,240,68,0.3);text-transform:uppercase;}.footer{background-color:#f4f7f8;padding:30px;text-align:center;font-size:12px;color:#999;}.footer p{margin:5px 0;}/* Reminder note — only appears for recurring */ .reminder-note { background: #EBF4FB; border-radius: 8px; padding: 16px 20px; margin: 24px 0; font-size: 14px; display: flex; gap: 14px; align-items: flex-start; } .reminder-note .icon { width: 32px; height: 32px; background: var(--navy); color: var(--amber-bright); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; font-weight: 700; } .reminder-note p { margin: 0; line-height: 1.55; } .reminder-note p strong { color: var(--navy); }.job-details { background-color: #f8fafb; border-radius: 8px; padding: 25px; margin: 30px 0; border-left: 4px solid #EAF044; } .detail-row { margin-bottom: 12px; display: flex; } .detail-label { font-weight: bold; width: 120px; color: #666; font-size: 13px; text-transform: uppercase; } .detail-value { color: #095c7b; font-weight: 600; }</style></head>";
 			var year = new Date().getFullYear();
 			//Email to LPO to let them know the job request has been accepted by the franchisee.
 
@@ -357,7 +520,7 @@ define([
 				html: emailToLPOBody,
 				metadata: {
 					lpoId: lpoParentId,
-					customerId: customerInternalId,
+					customerId: originalCustomerInternalIdFromLPODB,
 					jobId: lpoPlusJobId
 				}
 			};
@@ -388,6 +551,19 @@ define([
 			log.debug({
 				title: "myresponse_code",
 				details: myresponse_code
+			});
+
+			log.audit({
+				title:
+					"Job Request accepted by franchisee " +
+					partnerName +
+					" for LPO " +
+					lpoName,
+				details:
+					"Response Body: " +
+					myresponse_body +
+					", Response Code: " +
+					myresponse_code
 			});
 
 			//Send SMS
@@ -427,7 +603,9 @@ define([
 
 			var returnObj = {
 				success: true,
-				message: "Message sent by the operator."
+				message: "Message sent by the operator.",
+				jobAcceptedCustInternalId: customerInternalId,
+				serviceInternalId: acceptedFranchiseeServiceID
 			};
 
 			log.audit({

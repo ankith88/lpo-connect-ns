@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <style>
+    .email-container {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border: 1px solid #f0f0f0;
+    }
+
+    .header {
+      background-color: #095c7b;
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      color: #ffffff;
+      margin: 0;
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: 1px;
+    }
+
+    .header span {
+      color: #EAF044;
+      font-weight: bold;
+    }
+
+    .content {
+      padding: 40px 30px;
+      color: #333333;
+      line-height: 1.6;
+    }
+
+    .greeting {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: #095c7b;
+      font-weight: bold;
+    }
+
+    .instruction-box {
+      background-color: #f8fafb;
+      border-radius: 8px;
+      padding: 25px;
+      margin: 30px 0;
+      border-left: 4px solid #EAF044;
+    }
+
+    .button-container {
+      text-align: center;
+      margin: 40px 0;
+    }
+
+    .btn-primary {
+      background-color: #EAF044;
+      color: #095c7b;
+      padding: 16px 32px;
+      text-decoration: none;
+      font-weight: bold;
+      border-radius: 8px;
+      display: inline-block;
+      transition: background 0.3s;
+      box-shadow: 0 4px 12px rgba(234, 240, 68, 0.3);
+      text-transform: uppercase;
+    }
+
+    .footer {
+      background-color: #f4f7f8;
+      padding: 30px;
+      text-align: center;
+      font-size: 12px;
+      color: #999;
+    }
+
+    .footer p {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="email-container">
+    <div class="header">
+      <h1>LPO<span>.PLUS</span></h1>
+    </div>
+    <div class="content">
+      <div class="greeting">Action Required: Complete Your Onboarding</div>
+      <p>Hello ${firstName},</p>
+
+      <p>Thank you for choosing <strong>LPO.PLUS</strong> for your logistics needs. We have received a new job request
+        for <strong>${companyName}</strong>, but we require a one-time setup to begin service.</p>
+
+      <div class="instruction-box">
+        <p style="margin-top: 0; color: #095c7b; font-weight: 600;">Service Commencement Form (SCF)</p>
+        <p>To finalize your account and activate your job requests, please review and accept our Terms & Conditions.
+          This ensures your service is correctly synced with our billing and operational systems.</p>
+      </div>
+
+      <div class="button-container">
+        <a href="${scfLink}" class="btn-primary">
+          Complete Commencement Form
+        </a>
+      </div>
+
+      <p style="font-size: 14px; color: #666;">Once you have accepted the T&Cs through the portal, your job request will
+        automatically move to the "Pending" status for operator review.</p>
+    </div>
+    <div class="footer">
+      <p><strong>LPO.PLUS</strong> | Premium Logistics Solutions</p>
+      <p>Powered by MailPlus Australia</p>
+      <p style="margin-top: 15px;">&copy; ${new Date().getFullYear()} LPO.PLUS. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+
+</html>

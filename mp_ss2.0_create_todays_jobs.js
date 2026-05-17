@@ -105,9 +105,30 @@ define([
 							},
 							{
 								fieldFilter: {
-									field: { fieldPath: "syncedWithNetSuite" },
+									field: { fieldPath: "status" },
 									op: "EQUAL",
-									value: { booleanValue: false }
+									value: { stringValue: "awaiting-driver" }
+								}
+							},
+							{
+								compositeFilter: {
+									op: "OR",
+									filters: [
+										{
+											fieldFilter: {
+												field: { fieldPath: "syncedWithNetSuite" },
+												op: "EQUAL",
+												value: { booleanValue: false }
+											}
+										},
+										{
+											fieldFilter: {
+												field: { fieldPath: "syncedWithNetSuite" },
+												op: "EQUAL",
+												value: { nullValue: null }
+											}
+										}
+									]
 								}
 							}
 						]
@@ -168,6 +189,13 @@ define([
 
 				var service = flat.service;
 				var customerInternalId = flat.netsuiteCustomerId;
+				if (!isNullorEmpty(flat.jobAcceptedCustInternalId)) {
+					customerInternalId = flat.jobAcceptedCustInternalId;
+				}
+				log.debug({
+					title: "Customer Internal ID",
+					details: customerInternalId
+				});
 				var jobDate = flat.date;
 
 				var dateDDMMYYYY = convertDateToDDMMYYYY("" + flat.date + "");
@@ -519,7 +547,8 @@ define([
 						customerContactPhone,
 						jobDate,
 						stopNameForPickup,
-						activeOperator
+						activeOperator,
+						2
 					);
 					log.debug({
 						title: "Pickup Job ID",
@@ -557,7 +586,8 @@ define([
 						lpoContactPhone,
 						jobDate,
 						stopNameForDelivery,
-						activeOperator
+						activeOperator,
+						2
 					);
 
 					log.debug({
@@ -726,7 +756,8 @@ define([
 						lpoContactPhone,
 						jobDate,
 						stopNameForPickup,
-						activeOperator
+						activeOperator,
+						2
 					);
 
 					log.debug({
@@ -765,7 +796,8 @@ define([
 						customerContactPhone,
 						jobDate,
 						stopNameForDelivery,
-						activeOperator
+						activeOperator,
+						2
 					);
 					log.debug({
 						title: "Delivery Job ID",
@@ -932,7 +964,8 @@ define([
 						lpoContactPhone,
 						jobDate,
 						stopNameForPickup,
-						activeOperator
+						activeOperator,
+						4
 					);
 
 					log.debug({
@@ -971,7 +1004,8 @@ define([
 						customerContactPhone,
 						jobDate,
 						stopNameForDeliveryPickup,
-						activeOperator
+						activeOperator,
+						4
 					);
 					log.debug({
 						title: "Delivery Job ID",
@@ -1007,7 +1041,8 @@ define([
 						customerContactPhone,
 						jobDate,
 						stopNameForDeliveryPickup,
-						activeOperator
+						activeOperator,
+						4
 					);
 					log.debug({
 						title: "Pickup Job ID",
@@ -1045,7 +1080,8 @@ define([
 						lpoContactPhone,
 						jobDate,
 						stopNameForDelivery,
-						activeOperator
+						activeOperator,
+						4
 					);
 
 					log.debug({
@@ -1374,7 +1410,8 @@ define([
 		contactPhone,
 		lpoServiceDate,
 		stopNamePreCreated,
-		lpoLinkedZeesOperators
+		lpoLinkedZeesOperators,
+		totalStopsForJob
 	) {
 		log.debug({
 			title: "createAppJobs",
@@ -1643,6 +1680,7 @@ define([
 		apiBody += "],";
 
 		apiBody += '"stop_name": "' + stopNamePreCreated + '",';
+		apiBody += '"service_leg": "' + serviceLeg + '",';
 		apiBody += '"address": {';
 		apiBody += '"address1": "' + service_leg_addr_st_num + '",';
 		apiBody += '"suburb": "' + service_leg_addr_suburb + '",';
@@ -1654,6 +1692,7 @@ define([
 		apiBody += '"job_group": {';
 		apiBody += '"ns_id": "' + app_job_group_id2 + '",';
 		apiBody += '"name": "' + app_job_group_name + '",';
+		apiBody += '"total_stops": "' + totalStopsForJob + '",';
 		apiBody += '"status": "Scheduled"';
 		apiBody += "}";
 		apiBody += "}]}";

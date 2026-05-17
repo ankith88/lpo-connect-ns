@@ -137,8 +137,6 @@ define([
 
 			//Get Contact Details
 			if (primaryContactInternalID) {
-				
-
 				var headerObj = {
 					name: "Content-Type",
 					value: "application/json"
@@ -637,6 +635,20 @@ define([
 					serviceAMPOPMPO.rate +
 					'"},';
 			}
+			if (getServiceRate(serviceList, "Additional LPO Bag") != null) {
+				var serviceAdditionalLPOBag = getServiceRate(
+					serviceList,
+					"Additional LPO Bag"
+				);
+				lpoDetails +=
+					'"lpoServiceAdditionalLPOBagInternalID": {"stringValue": "' +
+					serviceAdditionalLPOBag.id +
+					'"},';
+				lpoDetails +=
+					'"lpoServiceAdditionalLPOBagRate": {"stringValue": "' +
+					serviceAdditionalLPOBag.rate +
+					'"},';
+			}
 
 			lpoDetails += "}}";
 
@@ -689,6 +701,68 @@ define([
 			});
 			linkedParentCustomerInternalID = leadRecord.save({
 				ignoreMandatoryFields: true
+			});
+
+			var emailToLPOSubject = "Welcome to LPO.PLUS";
+
+			//Send Email to End Customer
+			var emailToLPOBody =
+				"<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>.email-container{font-family: 'Fraunces', serif;max-width:600px;margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 15px rgba(0,0,0,0.05);border:1px solid #f0f0f0;}.header{background-color:#095c7b;padding:40px 20px;text-align:center;}.header h1{color:#ffffff;margin:0;font-size:24px;font-weight:300;letter-spacing:1px;}.header span{color:#EAF044;font-weight:bold;}.content{padding:40px 30px;color:#333333;line-height:1.6;}.greeting{font-size:18px;margin-bottom:20px;color:#095c7b;font-weight:bold;}.action-box{background-color:#f8fafb;border-radius:8px;padding:25px;margin:30px 0;border-left:4px solid #EAF044;}.button-container{text-align:center;margin:40px 0;}.btn-primary{background-color:#EAF044;color:#095c7b;padding:16px 32px;text-decoration:none;font-weight:bold;border-radius:8px;display:inline-block;transition:background 0.3s;box-shadow:0 4px 12px rgba(234,240,68,0.3);text-transform:uppercase;}.footer{background-color:#f4f7f8;padding:30px;text-align:center;font-size:12px;color:#999;}.footer p{margin:5px 0;}/* Reminder note — only appears for recurring */ .reminder-note { background: #EBF4FB; border-radius: 8px; padding: 16px 20px; margin: 24px 0; font-size: 14px; display: flex; gap: 14px; align-items: flex-start; } .reminder-note .icon { width: 32px; height: 32px; background: var(--navy); color: var(--amber-bright); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; font-weight: 700; } .reminder-note p { margin: 0; line-height: 1.55; } .reminder-note p strong { color: var(--navy); }.job-details { background-color: #f8fafb; border-radius: 8px; padding: 25px; margin: 30px 0; border-left: 4px solid #EAF044; } .detail-row { margin-bottom: 12px; display: flex; } .detail-label { font-weight: bold; width: 120px; color: #666; font-size: 13px; text-transform: uppercase; } .detail-value { color: #095c7b; font-weight: 600; }.instruction-box { background-color: #f8fafb; border-radius: 8px; padding: 25px; margin: 30px 0; border-left: 4px solid #EAF044; } .button-container { text-align: center; margin: 40px 0; }</style></head>";
+			var year = new Date().getFullYear();
+			//Email to LPO to let them know the job request has been accepted by the franchisee.
+
+			emailToLPOBody +=
+				'<body><div class="email-container"><div class="header"><h1>lpo<span>.plus</span></h1></div><div class="content"><div class="greeting">Welcome to lpo.<i>plus</i>.</div><p>Hello ' +
+				customerContactFirstName +
+				",</p><p>Your access to the <b>lpo.<i>plus</i></b> logistics management suite has been successfully provisioned. You can now manage your manifests, job requests, and client communications all in one place.</p>";
+			//Job Details Section
+			emailToLPOBody +=
+				'<div class="instruction-box"><p style="margin-top:0;color:#095c7b;font-weight:600;">First-Time Login Instructions:</p><p>To ensure your account is secure, please follow these steps for your initial sign-in:</p><ol style="padding-left:20px;"><li>Click the <strong>Sign In</strong> button below.</li><li>On the login screen, click the <strong>"Forgot Password"</strong> link.</li><li>Enter your email address to receive a secure password reset link.</li><li>Follow the prompts to set your new permanent password.</li></ol></div>';
+
+			emailToLPOBody +=
+				'<div class="button-container"><a href="https://lpo.plus/signin" class="btn-primary"> Sign In to LPO.PLUS </a></div>';
+
+			emailToLPOBody +=
+				"<p>If you have any trouble accessing your account, please contact Kerry O'Neill for assistance.</p>";
+
+			emailToLPOBody +=
+				'<div class="footer"><p><strong>lpo.plus</strong> | Local logistics, made simple.</p><p>Powered by MailPlus Australia</p><p style="margin-top:15px;">&copy; ' +
+				year +
+				" lpo.plus. All rights reserved.</p></div></div></body></html>";
+
+			var sendOutEmailJSON = {
+				to: customerContactEmail,
+				cc: ["michael.mcdaid@mailplus.com.au", "kerry.oneill@mailplus.com.au"],
+				subject: emailToLPOSubject,
+				html: emailToLPOBody
+			};
+			var firebaseUpdateURL =
+				"https://sendemailfromnetsuite-65tt2ndmpq-uc.a.run.app";
+
+			var apiHeaders = {};
+			apiHeaders["Content-Type"] = "application/json";
+			apiHeaders["x-api-key"] =
+				"f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123";
+			//f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123
+
+			var response = https.request({
+				method: https.Method.POST,
+				url: firebaseUpdateURL,
+				body: JSON.stringify(sendOutEmailJSON),
+				headers: apiHeaders
+			});
+
+			var myresponse_body = response.body;
+			var myresponse_code = response.code;
+
+			log.debug({
+				title: "myresponse_body",
+				details: myresponse_body
+			});
+
+			log.debug({
+				title: "myresponse_code",
+				details: myresponse_code
 			});
 
 			return true;
