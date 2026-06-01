@@ -68,7 +68,7 @@ define([
 			var jobStatus = context.request.parameters.jobstatus;
 			var incompleteReason = context.request.parameters.reason;
 
-			//{"jobid":"29255463","compid":"1048144","ns-at":"AAEJ7tMQ_heEJ7Twdq9DR8GTAVR8nRVdVzyfrx2Yv_2S_OgJiUs","jobgroupid":"21164905_29255463","operatorid":"1362","script":"2531","deploy":"1"}
+			//{"jobid":"29272226","compid":"1048144","ns-at":"AAEJ7tMQ_heEJ7Twdq9DR8GTAVR8nRVdVzyfrx2Yv_2S_OgJiUs","jobgroupid":"21173635_29272226","operatorid":"880","script":"2531","deploy":"1"}
 
 			log.debug({
 				title: "jobGroupJobIdString",
@@ -290,9 +290,9 @@ define([
 				});
 
 				log.debug({
-					title: 'serviceLeg',
+					title: "serviceLeg",
 					details: serviceLeg
-				})
+				});
 
 				//Search Name: LPO.PLUS - App Job Groups & App Jobs
 				var lpoPlusAppJobGroupStatusSyncSearch = search.load({
@@ -649,25 +649,25 @@ define([
 								"f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123";
 							//f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123
 
-							var response = https.request({
-								method: https.Method.POST,
-								url: firebaseUpdateURL,
-								body: JSON.stringify(sendOutEmailJSON),
-								headers: apiHeaders
-							});
+							// var response = https.request({
+							// 	method: https.Method.POST,
+							// 	url: firebaseUpdateURL,
+							// 	body: JSON.stringify(sendOutEmailJSON),
+							// 	headers: apiHeaders
+							// });
 
-							var myresponse_body = response.body;
-							var myresponse_code = response.code;
+							// var myresponse_body = response.body;
+							// var myresponse_code = response.code;
 
-							log.debug({
-								title: "myresponse_body",
-								details: myresponse_body
-							});
+							// log.debug({
+							// 	title: "myresponse_body",
+							// 	details: myresponse_body
+							// });
 
-							log.debug({
-								title: "myresponse_code",
-								details: myresponse_code
-							});
+							// log.debug({
+							// 	title: "myresponse_code",
+							// 	details: myresponse_code
+							// });
 						}
 					}
 				}
@@ -930,25 +930,25 @@ define([
 								"f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123";
 							//f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123
 
-							var response = https.request({
-								method: https.Method.POST,
-								url: firebaseUpdateURL,
-								body: JSON.stringify(sendOutEmailJSON),
-								headers: apiHeaders
-							});
+							// var response = https.request({
+							// 	method: https.Method.POST,
+							// 	url: firebaseUpdateURL,
+							// 	body: JSON.stringify(sendOutEmailJSON),
+							// 	headers: apiHeaders
+							// });
 
-							var myresponse_body = response.body;
-							var myresponse_code = response.code;
+							// var myresponse_body = response.body;
+							// var myresponse_code = response.code;
 
-							log.debug({
-								title: "myresponse_body",
-								details: myresponse_body
-							});
+							// log.debug({
+							// 	title: "myresponse_body",
+							// 	details: myresponse_body
+							// });
 
-							log.debug({
-								title: "myresponse_code",
-								details: myresponse_code
-							});
+							// log.debug({
+							// 	title: "myresponse_code",
+							// 	details: myresponse_code
+							// });
 						}
 					}
 				}

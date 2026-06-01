@@ -1281,7 +1281,7 @@ define([
 			type: "customrecord_jobgroup"
 		});
 
-		//Search Name: LPO Connect & LocalMile - App Job Groups Created - Get Count
+		//Search Name: LPO.PLUS - App Job Groups Created - Get Count
 		var getAppJobGroupNameCountSearch = search.load({
 			type: "customrecord_jobgroup",
 			id: "customsearch_localmile_app_job_groups__4"

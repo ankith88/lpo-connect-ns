@@ -454,25 +454,25 @@ define([
 				"f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123";
 			//f7d8c2e1b0a943ef8215d6c7b8a90123fe456789abcd0123456789abcdef0123
 
-			var response = https.request({
-				method: https.Method.POST,
-				url: firebaseUpdateURL,
-				body: JSON.stringify(sendOutEmailJSON),
-				headers: apiHeaders
-			});
+			// var response = https.request({
+			// 	method: https.Method.POST,
+			// 	url: firebaseUpdateURL,
+			// 	body: JSON.stringify(sendOutEmailJSON),
+			// 	headers: apiHeaders
+			// });
 
-			var myresponse_body = response.body;
-			var myresponse_code = response.code;
+			// var myresponse_body = response.body;
+			// var myresponse_code = response.code;
 
-			log.debug({
-				title: "myresponse_body",
-				details: myresponse_body
-			});
+			// log.debug({
+			// 	title: "myresponse_body",
+			// 	details: myresponse_body
+			// });
 
-			log.debug({
-				title: "myresponse_code",
-				details: myresponse_code
-			});
+			// log.debug({
+			// 	title: "myresponse_code",
+			// 	details: myresponse_code
+			// });
 
 			//Send Email to LPO
 
