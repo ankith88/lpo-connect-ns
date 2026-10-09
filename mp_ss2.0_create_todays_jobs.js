@@ -158,1095 +158,1107 @@ define([
 
     //loop through the jobs
     for (var i = 0; i < responseObj.length; i++) {
-      if (!isNullorEmpty(responseObj[i].document.name)) {
-        var jobRESTURL = responseObj[i].document.name; //projects/mp-lpo-connect/databases/lpoconnect/documents/jobs/JLHw2WgJhyMawSt6fJJ7
-        var job_id = jobRESTURL.split("jobs/").pop();
+      try {
+        if (!isNullorEmpty(responseObj[i].document.name)) {
+          var jobRESTURL = responseObj[i].document.name; //projects/mp-lpo-connect/databases/lpoconnect/documents/jobs/JLHw2WgJhyMawSt6fJJ7
+          var job_id = jobRESTURL.split("jobs/").pop();
 
-        log.debug({
-          title: "Job REST URL",
-          details: jobRESTURL
-        });
-        log.debug({
-          title: "Job ID from URL",
-          details: job_id
-        });
-
-        var job = responseObj[i].document.fields;
-
-        log.debug({
-          title: "Job " + i,
-          details: job
-        });
-
-        var flat = extractKeyValuePairs(job);
-        log.debug({
-          title: "Flattened Job " + i,
-          details: flat
-        });
-
-        var request_id = flat.id;
-        var jobType = flat.jobType;
-
-        var service = flat.service;
-        var customerInternalId = flat.netsuiteCustomerId;
-        if (!isNullorEmpty(flat.jobAcceptedCustInternalId)) {
-          customerInternalId = flat.jobAcceptedCustInternalId;
-        }
-        log.debug({
-          title: "Customer Internal ID",
-          details: customerInternalId
-        });
-        var jobDate = flat.date;
-
-        var dateDDMMYYYY = convertDateToDDMMYYYY("" + flat.date + "");
-        var netsuiteLPOServiceDateDateFormat = dateSelected2Date(
-          "" + flat.date + ""
-        );
-
-        log.debug({
-          title: "Service Date",
-          details: dateDDMMYYYY
-        });
-        log.debug({
-          title: "NetSuite LPO Service Date Format",
-          details: netsuiteLPOServiceDateDateFormat
-        });
-
-        //Load Customer Record.
-        var customerRecord = record.load({
-          type: "customer",
-          id: customerInternalId
-        });
-
-        var siteCompanyName = customerRecord.getValue({
-          fieldId: "companyname"
-        });
-        var companyLinkedZee = customerRecord.getValue({
-          fieldId: "partner"
-        });
-
-        //Load Site Address
-        //NetSuite Search: Customer List - Site Addresses
-        var siteAddressesSearch = search.load({
-          id: "customsearch_cust_list_site_addresses",
-          type: "customer"
-        });
-
-        siteAddressesSearch.filters.push(
-          search.createFilter({
-            name: "internalid",
-            join: null,
-            operator: search.Operator.ANYOF,
-            values: customerInternalId
-          })
-        );
-
-        var shippingAddress1 = null;
-        var shippingAddress2 = null;
-        var shippingCity = null;
-        var shippingStateProvince = null;
-        var shippingZip = null;
-        var shippingLat = null;
-        var shippingLon = null;
-        siteAddressesSearch.run().each(function (siteAddressesSearchResultSet) {
-          shippingAddress1 = siteAddressesSearchResultSet.getValue({
-            name: "address1",
-            join: "Address"
+          log.debug({
+            title: "Job REST URL",
+            details: jobRESTURL
           });
-          shippingAddress2 = siteAddressesSearchResultSet.getValue({
-            name: "address2",
-            join: "Address"
-          });
-          shippingCity = siteAddressesSearchResultSet.getValue({
-            name: "city",
-            join: "Address"
-          });
-          shippingStateProvince = siteAddressesSearchResultSet.getValue({
-            name: "state",
-            join: "Address"
-          });
-          shippingZip = siteAddressesSearchResultSet.getValue({
-            name: "zipcode",
-            join: "Address"
+          log.debug({
+            title: "Job ID from URL",
+            details: job_id
           });
 
-          shippingLat = siteAddressesSearchResultSet.getValue({
-            name: "custrecord_address_lat",
-            join: "Address",
-            summary: "GROUP"
-          });
-          shippingLon = siteAddressesSearchResultSet.getValue({
-            name: "custrecord_address_lon",
-            join: "Address",
-            summary: "GROUP"
-          });
-        });
+          var job = responseObj[i].document.fields;
 
-        log.debug({
-          title: "Shipping Address",
-          details:
-            shippingAddress1 +
-            " " +
-            shippingAddress2 +
-            ", " +
-            shippingCity +
-            ", " +
-            shippingStateProvince +
-            " " +
-            shippingZip
-        });
-
-        var lpoParentCustomerInternalID = flat.lpo_id;
-
-        var lpoParentCustomerRecord = record.load({
-          type: record.Type.CUSTOMER,
-          id: lpoParentCustomerInternalID
-        });
-        var lpoName = lpoParentCustomerRecord.getValue({
-          fieldId: "companyname"
-        });
-
-        var lpoLinkedZees = lpoParentCustomerRecord.getValue({
-          fieldId: "custentity_lpo_linked_franchisees"
-        });
-        var lpoNameArray = lpoName.split(" - ");
-        lpoName = lpoNameArray[0].trim();
-
-        //Search: Active Parent LPO Customers - Contacts
-        var parentLPOCustomerContactsSearch = search.load({
-          type: "customer",
-          id: "customsearch_parent_lpo_customers_3"
-        });
-        parentLPOCustomerContactsSearch.filters.push(
-          search.createFilter({
-            name: "internalid",
-            operator: search.Operator.ANYOF,
-            values: lpoParentCustomerInternalID
-          })
-        );
-        var lpoContactFName = null;
-        var lpoContactLName = null;
-        var lpoContactEmail = null;
-        var lpoContactPhone = null;
-
-        var parentLPOCustomerContactsSearchResultSet =
-          parentLPOCustomerContactsSearch.run();
-        parentLPOCustomerContactsSearchResultSet.each(function (resultSet) {
-          var lpoContactInternalId = resultSet.getValue({
-            name: "internalid",
-            join: "contact"
-          });
-          lpoContactFName = resultSet.getValue({
-            name: "firstname",
-            join: "contact"
-          });
-          lpoContactLName = resultSet.getValue({
-            name: "lastname",
-            join: "contact"
-          });
-          lpoContactEmail = resultSet.getValue({
-            name: "email",
-            join: "contact"
-          });
-          lpoContactPhone = resultSet.getValue({
-            name: "phone",
-            join: "contact"
-          });
-          return true;
-        });
-
-        //Load Site Address
-        //NetSuite Search: Customer List - Site Addresses
-        var siteAddressesSearch = search.load({
-          id: "customsearch_cust_list_site_addresses",
-          type: "customer"
-        });
-
-        siteAddressesSearch.filters.push(
-          search.createFilter({
-            name: "internalid",
-            join: null,
-            operator: search.Operator.ANYOF,
-            values: lpoParentCustomerInternalID
-          })
-        );
-
-        var lpoShippingAddress1 = null;
-        var lpoShippingAddress2 = null;
-        var lpoShippingCity = null;
-        var lpoShippingStateProvince = null;
-        var lpoShippingZip = null;
-        var lpoShippingLat = null;
-        var lpoShippingLon = null;
-        siteAddressesSearch.run().each(function (siteAddressesSearchResultSet) {
-          lpoShippingAddress1 = siteAddressesSearchResultSet.getValue({
-            name: "address1",
-            join: "Address"
-          });
-          lpoShippingAddress2 = siteAddressesSearchResultSet.getValue({
-            name: "address2",
-            join: "Address"
-          });
-          lpoShippingCity = siteAddressesSearchResultSet.getValue({
-            name: "city",
-            join: "Address"
-          });
-          lpoShippingStateProvince = siteAddressesSearchResultSet.getValue({
-            name: "state",
-            join: "Address"
-          });
-          lpoShippingZip = siteAddressesSearchResultSet.getValue({
-            name: "zipcode",
-            join: "Address"
+          log.debug({
+            title: "Job " + i,
+            details: job
           });
 
-          lpoShippingLat = siteAddressesSearchResultSet.getValue({
-            name: "custrecord_address_lat",
-            join: "Address",
-            summary: "GROUP"
+          var flat = extractKeyValuePairs(job);
+          log.debug({
+            title: "Flattened Job " + i,
+            details: flat
           });
-          lpoShippingLon = siteAddressesSearchResultSet.getValue({
-            name: "custrecord_address_lon",
-            join: "Address",
-            summary: "GROUP"
-          });
-        });
 
-        log.debug({
-          title: "LPO Shipping Address",
-          details:
-            lpoShippingAddress1 +
-            " " +
-            lpoShippingAddress2 +
-            ", " +
-            lpoShippingCity +
-            ", " +
-            lpoShippingStateProvince +
-            " " +
-            lpoShippingZip
-        });
+          var request_id = flat.id;
+          var jobType = flat.jobType;
 
-        var serviceInternalId = flat.serviceInternalId;
-        var serviceType = flat.service;
-        var billing = flat.billing;
-
-        if (!isNullorEmpty(flat.preferredTime)) {
-          var currentTime = flat.preferredTime;
-        } else {
-          var currentTime = "12:00 PM";
-        }
-
-        var customerContactName =
-          flat["customer.firstName"] + " " + flat["customer.lastName"];
-        var customerContactEmail = flat["customer.email"];
-        var customerContactPhone = flat["customer.phone"];
-
-        var instructions = flat["customer.instructions"];
-
-        var lpoSuburbMappingJSON = [];
-        var activeOperator = [];
-        var partnerRecord = record.load({
-          type: record.Type.PARTNER,
-          id: companyLinkedZee
-        });
-
-        if (!isNullorEmpty(lpoParentCustomerInternalID)) {
-          var zeeJSONString = partnerRecord.getValue({
-            fieldId: "custentity_ap_suburbs_json"
-          });
-        } else {
-          var zeeJSONString = partnerRecord.getValue({
-            fieldId: "custentity_zee_territory_json"
-          });
-        }
-
-        log.debug({
-          title: "zeeJSONString",
-          details: zeeJSONString
-        });
-
-        var zeeJSON = JSON.parse(zeeJSONString);
-        zeeJSON.forEach(function (suburb) {
-          lpoSuburbMappingJSON.push(suburb);
-          if (!isNullorEmpty(suburb.parent_lpo_id)) {
-            if (
-              suburb.parent_lpo_id == lpoParentCustomerInternalID &&
-              suburb.suburbs.toUpperCase() == shippingCity.toUpperCase() &&
-              suburb.post_code == shippingZip &&
-              suburb.state.toUpperCase() == shippingStateProvince.toUpperCase()
-            ) {
-              if (!isNullorEmpty(suburb.primary_op)) {
-                if (Array.isArray(suburb.primary_op)) {
-                  for (var i = 0; i < suburb.primary_op.length; i++) {
-                    activeOperator.push(suburb.primary_op[i]);
-                  }
-                } else {
-                  activeOperator.push(suburb.primary_op);
-                }
-              }
-            }
+          var service = flat.service;
+          var customerInternalId = flat.netsuiteCustomerId;
+          if (!isNullorEmpty(flat.jobAcceptedCustInternalId)) {
+            customerInternalId = flat.jobAcceptedCustInternalId;
           }
-        });
-        activeOperator = removeDuplicates(activeOperator);
-
-        log.debug({
-          title: "activeOperator",
-          details: activeOperator
-        });
-
-        if (serviceType == "site-to-lpo") {
-          //PMPO
-          // Create App Job Group
-          var appJobGroupID = createAppJobGroup(
-            "PMPO",
-            customerInternalId,
-            companyLinkedZee,
-            serviceInternalId,
-            dateDDMMYYYY,
-            netsuiteLPOServiceDateDateFormat,
-            job_id
-          );
-
-          var appJobGroupRecord = record.load({
-            type: "customrecord_jobgroup",
-            id: appJobGroupID
-          });
-
-          var app_job_group_name = appJobGroupRecord.getValue({
-            fieldId: "name"
-          });
-
-          var stopNameForPickup = "PICKUP - " + siteCompanyName.toUpperCase();
-
-          //Create App Jobs for Site Delivery
-          var app_job_id_1 = createAppJobs(
-            customerInternalId,
-            siteCompanyName.toUpperCase(),
-            serviceInternalId,
-            currentTime,
-            appJobGroupID,
-            shippingAddress1 + " " + shippingAddress2,
-            shippingCity,
-            shippingStateProvince,
-            shippingZip,
-            shippingLat,
-            shippingLon,
-            companyLinkedZee,
-            instructions,
-            null,
-            null,
-            "adhoc",
-            siteCompanyName,
-            app_job_group_name,
-            netsuiteLPOServiceDateDateFormat,
-            dateDDMMYYYY,
-            1,
-            customerContactName,
-            "",
-            customerContactEmail,
-            customerContactPhone,
-            jobDate,
-            stopNameForPickup,
-            activeOperator,
-            2
-          );
           log.debug({
-            title: "Pickup Job ID",
-            details: app_job_id_1
+            title: "Customer Internal ID",
+            details: customerInternalId
           });
+          var jobDate = flat.date;
 
-          var stopNameForDelivery = "DELIVERY - " + lpoName.toUpperCase();
-
-          //Create App Jobs for LPO Delivery
-          var app_job_id_2 = createAppJobs(
-            customerInternalId,
-            lpoName.toUpperCase(),
-            serviceInternalId,
-            currentTime,
-            appJobGroupID,
-            lpoShippingAddress1 + " " + lpoShippingAddress2,
-            lpoShippingCity,
-            lpoShippingStateProvince,
-            lpoShippingZip,
-            lpoShippingLat,
-            lpoShippingLon,
-            companyLinkedZee,
-            instructions,
-            null,
-            2,
-            "adhoc",
-            siteCompanyName,
-            app_job_group_name,
-            netsuiteLPOServiceDateDateFormat,
-            dateDDMMYYYY,
-            2,
-            lpoContactFName + " " + lpoContactLName,
-            "",
-            lpoContactEmail,
-            lpoContactPhone,
-            jobDate,
-            stopNameForDelivery,
-            activeOperator,
-            2
+          var dateDDMMYYYY = convertDateToDDMMYYYY("" + flat.date + "");
+          var netsuiteLPOServiceDateDateFormat = dateSelected2Date(
+            "" + flat.date + ""
           );
 
           log.debug({
-            title: "Delivery Job ID",
-            details: app_job_id_2
+            title: "Service Date",
+            details: dateDDMMYYYY
+          });
+          log.debug({
+            title: "NetSuite LPO Service Date Format",
+            details: netsuiteLPOServiceDateDateFormat
           });
 
-          var updateJobCollectionJSON = {
-            fields: {
-              appJobGroupId: {
-                stringValue: "" + appJobGroupID + ""
-              },
-              syncedWithNetSuite: {
-                booleanValue: true
-              },
-              stops: {
-                arrayValue: {
-                  values: [
-                    {
-                      mapValue: {
-                        fields: {
-                          type: { stringValue: "pickup" },
-                          label: { stringValue: "Pickup Site" },
-                          locationName: {
-                            stringValue: "" + siteCompanyName + ""
-                          },
-                          address: {
-                            stringValue:
-                              "" +
-                              shippingAddress1 +
-                              " " +
-                              shippingAddress2 +
-                              ""
-                          },
-                          suburb: { stringValue: "" + shippingCity + "" },
-                          state: {
-                            stringValue: "" + shippingStateProvince + ""
-                          },
-                          postcode: { stringValue: "" + shippingZip + "" },
-                          sequence: { integerValue: "1" },
-                          status: { stringValue: "pending" },
-                          appJobId: { stringValue: "" + app_job_id_1 + "" },
-                          lat: { stringValue: "" + shippingLat + "" },
-                          lng: { stringValue: "" + shippingLon + "" }
-                        }
-                      }
-                    },
-                    {
-                      mapValue: {
-                        fields: {
-                          type: { stringValue: "delivery" },
-                          label: { stringValue: "Delivery LPO" },
-                          locationName: {
-                            stringValue: "" + lpoName + ""
-                          },
-                          address: {
-                            stringValue:
-                              "" +
-                              lpoShippingAddress1 +
-                              " " +
-                              lpoShippingAddress2 +
-                              ""
-                          },
-                          suburb: { stringValue: "" + lpoShippingCity + "" },
-                          state: {
-                            stringValue: "" + lpoShippingStateProvince + ""
-                          },
-                          postcode: { stringValue: "" + lpoShippingZip + "" },
-                          sequence: { integerValue: "2" },
-                          status: { stringValue: "pending" },
-                          appJobId: { stringValue: "" + app_job_id_2 + "" },
-                          lat: { stringValue: "" + lpoShippingLat + "" },
-                          lng: { stringValue: "" + lpoShippingLon + "" }
-                        }
-                      }
+          //Load Customer Record.
+          var customerRecord = record.load({
+            type: "customer",
+            id: customerInternalId
+          });
+
+          var siteCompanyName = customerRecord.getValue({
+            fieldId: "companyname"
+          });
+          var companyLinkedZee = customerRecord.getValue({
+            fieldId: "partner"
+          });
+
+          //Load Site Address
+          //NetSuite Search: Customer List - Site Addresses
+          var siteAddressesSearch = search.load({
+            id: "customsearch_cust_list_site_addresses",
+            type: "customer"
+          });
+
+          siteAddressesSearch.filters.push(
+            search.createFilter({
+              name: "internalid",
+              join: null,
+              operator: search.Operator.ANYOF,
+              values: customerInternalId
+            })
+          );
+
+          var shippingAddress1 = null;
+          var shippingAddress2 = null;
+          var shippingCity = null;
+          var shippingStateProvince = null;
+          var shippingZip = null;
+          var shippingLat = null;
+          var shippingLon = null;
+          siteAddressesSearch
+            .run()
+            .each(function (siteAddressesSearchResultSet) {
+              shippingAddress1 = siteAddressesSearchResultSet.getValue({
+                name: "address1",
+                join: "Address"
+              });
+              shippingAddress2 = siteAddressesSearchResultSet.getValue({
+                name: "address2",
+                join: "Address"
+              });
+              shippingCity = siteAddressesSearchResultSet.getValue({
+                name: "city",
+                join: "Address"
+              });
+              shippingStateProvince = siteAddressesSearchResultSet.getValue({
+                name: "state",
+                join: "Address"
+              });
+              shippingZip = siteAddressesSearchResultSet.getValue({
+                name: "zipcode",
+                join: "Address"
+              });
+
+              shippingLat = siteAddressesSearchResultSet.getValue({
+                name: "custrecord_address_lat",
+                join: "Address",
+                summary: "GROUP"
+              });
+              shippingLon = siteAddressesSearchResultSet.getValue({
+                name: "custrecord_address_lon",
+                join: "Address",
+                summary: "GROUP"
+              });
+            });
+
+          log.debug({
+            title: "Shipping Address",
+            details:
+              shippingAddress1 +
+              " " +
+              shippingAddress2 +
+              ", " +
+              shippingCity +
+              ", " +
+              shippingStateProvince +
+              " " +
+              shippingZip
+          });
+
+          var lpoParentCustomerInternalID = flat.lpo_id;
+
+          var lpoParentCustomerRecord = record.load({
+            type: record.Type.CUSTOMER,
+            id: lpoParentCustomerInternalID
+          });
+          var lpoName = lpoParentCustomerRecord.getValue({
+            fieldId: "companyname"
+          });
+
+          var lpoLinkedZees = lpoParentCustomerRecord.getValue({
+            fieldId: "custentity_lpo_linked_franchisees"
+          });
+          var lpoNameArray = lpoName.split(" - ");
+          lpoName = lpoNameArray[0].trim();
+
+          //Search: Active Parent LPO Customers - Contacts
+          var parentLPOCustomerContactsSearch = search.load({
+            type: "customer",
+            id: "customsearch_parent_lpo_customers_3"
+          });
+          parentLPOCustomerContactsSearch.filters.push(
+            search.createFilter({
+              name: "internalid",
+              operator: search.Operator.ANYOF,
+              values: lpoParentCustomerInternalID
+            })
+          );
+          var lpoContactFName = null;
+          var lpoContactLName = null;
+          var lpoContactEmail = null;
+          var lpoContactPhone = null;
+
+          var parentLPOCustomerContactsSearchResultSet =
+            parentLPOCustomerContactsSearch.run();
+          parentLPOCustomerContactsSearchResultSet.each(function (resultSet) {
+            var lpoContactInternalId = resultSet.getValue({
+              name: "internalid",
+              join: "contact"
+            });
+            lpoContactFName = resultSet.getValue({
+              name: "firstname",
+              join: "contact"
+            });
+            lpoContactLName = resultSet.getValue({
+              name: "lastname",
+              join: "contact"
+            });
+            lpoContactEmail = resultSet.getValue({
+              name: "email",
+              join: "contact"
+            });
+            lpoContactPhone = resultSet.getValue({
+              name: "phone",
+              join: "contact"
+            });
+            return true;
+          });
+
+          //Load Site Address
+          //NetSuite Search: Customer List - Site Addresses
+          var siteAddressesSearch = search.load({
+            id: "customsearch_cust_list_site_addresses",
+            type: "customer"
+          });
+
+          siteAddressesSearch.filters.push(
+            search.createFilter({
+              name: "internalid",
+              join: null,
+              operator: search.Operator.ANYOF,
+              values: lpoParentCustomerInternalID
+            })
+          );
+
+          var lpoShippingAddress1 = null;
+          var lpoShippingAddress2 = null;
+          var lpoShippingCity = null;
+          var lpoShippingStateProvince = null;
+          var lpoShippingZip = null;
+          var lpoShippingLat = null;
+          var lpoShippingLon = null;
+          siteAddressesSearch
+            .run()
+            .each(function (siteAddressesSearchResultSet) {
+              lpoShippingAddress1 = siteAddressesSearchResultSet.getValue({
+                name: "address1",
+                join: "Address"
+              });
+              lpoShippingAddress2 = siteAddressesSearchResultSet.getValue({
+                name: "address2",
+                join: "Address"
+              });
+              lpoShippingCity = siteAddressesSearchResultSet.getValue({
+                name: "city",
+                join: "Address"
+              });
+              lpoShippingStateProvince = siteAddressesSearchResultSet.getValue({
+                name: "state",
+                join: "Address"
+              });
+              lpoShippingZip = siteAddressesSearchResultSet.getValue({
+                name: "zipcode",
+                join: "Address"
+              });
+
+              lpoShippingLat = siteAddressesSearchResultSet.getValue({
+                name: "custrecord_address_lat",
+                join: "Address",
+                summary: "GROUP"
+              });
+              lpoShippingLon = siteAddressesSearchResultSet.getValue({
+                name: "custrecord_address_lon",
+                join: "Address",
+                summary: "GROUP"
+              });
+            });
+
+          log.debug({
+            title: "LPO Shipping Address",
+            details:
+              lpoShippingAddress1 +
+              " " +
+              lpoShippingAddress2 +
+              ", " +
+              lpoShippingCity +
+              ", " +
+              lpoShippingStateProvince +
+              " " +
+              lpoShippingZip
+          });
+
+          var serviceInternalId = flat.serviceInternalId;
+          var serviceType = flat.service;
+          var billing = flat.billing;
+
+          if (!isNullorEmpty(flat.preferredTime)) {
+            var currentTime = flat.preferredTime;
+          } else {
+            var currentTime = "12:00 PM";
+          }
+
+          var customerContactName =
+            flat["customer.firstName"] + " " + flat["customer.lastName"];
+          var customerContactEmail = flat["customer.email"];
+          var customerContactPhone = flat["customer.phone"];
+
+          var instructions = flat["customer.instructions"];
+
+          var lpoSuburbMappingJSON = [];
+          var activeOperator = [];
+          var partnerRecord = record.load({
+            type: record.Type.PARTNER,
+            id: companyLinkedZee
+          });
+
+          if (!isNullorEmpty(lpoParentCustomerInternalID)) {
+            var zeeJSONString = partnerRecord.getValue({
+              fieldId: "custentity_ap_suburbs_json"
+            });
+          } else {
+            var zeeJSONString = partnerRecord.getValue({
+              fieldId: "custentity_zee_territory_json"
+            });
+          }
+
+          log.debug({
+            title: "zeeJSONString",
+            details: zeeJSONString
+          });
+
+          var zeeJSON = JSON.parse(zeeJSONString);
+          zeeJSON.forEach(function (suburb) {
+            lpoSuburbMappingJSON.push(suburb);
+            if (!isNullorEmpty(suburb.parent_lpo_id)) {
+              if (
+                suburb.parent_lpo_id == lpoParentCustomerInternalID &&
+                suburb.suburbs.toUpperCase() == shippingCity.toUpperCase() &&
+                suburb.post_code == shippingZip &&
+                suburb.state.toUpperCase() ==
+                  shippingStateProvince.toUpperCase()
+              ) {
+                if (!isNullorEmpty(suburb.primary_op)) {
+                  if (Array.isArray(suburb.primary_op)) {
+                    for (var i = 0; i < suburb.primary_op.length; i++) {
+                      activeOperator.push(suburb.primary_op[i]);
                     }
-                  ]
+                  } else {
+                    activeOperator.push(suburb.primary_op);
+                  }
                 }
               }
             }
-          };
-
-          var firebaseUpdateURL =
-            "https://firestore.googleapis.com/v1/projects/mp-lpo-connect/databases/lpoconnect/documents/jobs/" +
-            job_id +
-            "?updateMask.fieldPaths=stops&updateMask.fieldPaths=appJobGroupId&updateMask.fieldPaths=syncedWithNetSuite";
-          var apiHeaders = {};
-          apiHeaders["Content-Type"] = "application/json";
-          apiHeaders["Accept"] = "*/*";
-          apiHeaders["X-HTTP-Method-Override"] = "PATCH";
-
-          var response = https.request({
-            method: https.Method.POST,
-            url: firebaseUpdateURL,
-            body: JSON.stringify(updateJobCollectionJSON),
-            headers: apiHeaders
           });
-
-          var myresponse_body = response.body;
-          var myresponse_code = response.code;
+          activeOperator = removeDuplicates(activeOperator);
 
           log.debug({
-            title: "myresponse_body",
-            details: myresponse_body
+            title: "activeOperator",
+            details: activeOperator
           });
 
-          log.debug({
-            title: "myresponse_code",
-            details: myresponse_code
-          });
-        } else if (serviceType == "lpo-to-site") {
-          //AMPO
-          // Create App Job Group
-          var appJobGroupID = createAppJobGroup(
-            "AMPO",
-            customerInternalId,
-            companyLinkedZee,
-            serviceInternalId,
-            dateDDMMYYYY,
-            netsuiteLPOServiceDateDateFormat,
-            job_id
-          );
+          if (serviceType == "site-to-lpo") {
+            //PMPO
+            // Create App Job Group
+            var appJobGroupID = createAppJobGroup(
+              "PMPO",
+              customerInternalId,
+              companyLinkedZee,
+              serviceInternalId,
+              dateDDMMYYYY,
+              netsuiteLPOServiceDateDateFormat,
+              job_id
+            );
 
-          log.debug({
-            title: "App Job Group ID",
-            details: appJobGroupID
-          });
+            var appJobGroupRecord = record.load({
+              type: "customrecord_jobgroup",
+              id: appJobGroupID
+            });
 
-          var appJobGroupRecord = record.load({
-            type: "customrecord_jobgroup",
-            id: appJobGroupID
-          });
+            var app_job_group_name = appJobGroupRecord.getValue({
+              fieldId: "name"
+            });
 
-          var app_job_group_name = appJobGroupRecord.getValue({
-            fieldId: "name"
-          });
+            var stopNameForPickup = "PICKUP - " + siteCompanyName.toUpperCase();
 
-          var stopNameForPickup = "PICKUP - " + lpoName.toUpperCase();
+            //Create App Jobs for Site Delivery
+            var app_job_id_1 = createAppJobs(
+              customerInternalId,
+              siteCompanyName.toUpperCase(),
+              serviceInternalId,
+              currentTime,
+              appJobGroupID,
+              shippingAddress1 + " " + shippingAddress2,
+              shippingCity,
+              shippingStateProvince,
+              shippingZip,
+              shippingLat,
+              shippingLon,
+              companyLinkedZee,
+              instructions,
+              null,
+              null,
+              "adhoc",
+              siteCompanyName,
+              app_job_group_name,
+              netsuiteLPOServiceDateDateFormat,
+              dateDDMMYYYY,
+              1,
+              customerContactName,
+              "",
+              customerContactEmail,
+              customerContactPhone,
+              jobDate,
+              stopNameForPickup,
+              activeOperator,
+              2
+            );
+            log.debug({
+              title: "Pickup Job ID",
+              details: app_job_id_1
+            });
 
-          //Create App Jobs for LPO PickUp
-          var app_job_id_1 = createAppJobs(
-            customerInternalId,
-            lpoName.toUpperCase(),
-            serviceInternalId,
-            currentTime,
-            appJobGroupID,
-            lpoShippingAddress1 + " " + lpoShippingAddress2,
-            lpoShippingCity,
-            lpoShippingStateProvince,
-            lpoShippingZip,
-            lpoShippingLat,
-            lpoShippingLon,
-            companyLinkedZee,
-            instructions,
-            null,
-            3,
-            "adhoc",
-            siteCompanyName,
-            app_job_group_name,
-            netsuiteLPOServiceDateDateFormat,
-            dateDDMMYYYY,
-            1,
-            lpoContactFName + " " + lpoContactLName,
-            "",
-            lpoContactEmail,
-            lpoContactPhone,
-            jobDate,
-            stopNameForPickup,
-            activeOperator,
-            2
-          );
+            var stopNameForDelivery = "DELIVERY - " + lpoName.toUpperCase();
 
-          log.debug({
-            title: "Pickup Job ID",
-            details: app_job_id_1
-          });
+            //Create App Jobs for LPO Delivery
+            var app_job_id_2 = createAppJobs(
+              customerInternalId,
+              lpoName.toUpperCase(),
+              serviceInternalId,
+              currentTime,
+              appJobGroupID,
+              lpoShippingAddress1 + " " + lpoShippingAddress2,
+              lpoShippingCity,
+              lpoShippingStateProvince,
+              lpoShippingZip,
+              lpoShippingLat,
+              lpoShippingLon,
+              companyLinkedZee,
+              instructions,
+              null,
+              2,
+              "adhoc",
+              siteCompanyName,
+              app_job_group_name,
+              netsuiteLPOServiceDateDateFormat,
+              dateDDMMYYYY,
+              2,
+              lpoContactFName + " " + lpoContactLName,
+              "",
+              lpoContactEmail,
+              lpoContactPhone,
+              jobDate,
+              stopNameForDelivery,
+              activeOperator,
+              2
+            );
 
-          var stopNameForDelivery =
-            "DELIVERY - " + siteCompanyName.toUpperCase();
-          //Create App Jobs for Site Delivery
-          var app_job_id_2 = createAppJobs(
-            customerInternalId,
-            siteCompanyName.toUpperCase(),
-            serviceInternalId,
-            currentTime,
-            appJobGroupID,
-            shippingAddress1 + " " + shippingAddress2,
-            shippingCity,
-            shippingStateProvince,
-            shippingZip,
-            shippingLat,
-            shippingLon,
-            companyLinkedZee,
-            instructions,
-            null,
-            null,
-            "adhoc",
-            siteCompanyName,
-            app_job_group_name,
-            netsuiteLPOServiceDateDateFormat,
-            dateDDMMYYYY,
-            2,
-            customerContactName,
-            "",
-            customerContactEmail,
-            customerContactPhone,
-            jobDate,
-            stopNameForDelivery,
-            activeOperator,
-            2
-          );
-          log.debug({
-            title: "Delivery Job ID",
-            details: app_job_id_2
-          });
+            log.debug({
+              title: "Delivery Job ID",
+              details: app_job_id_2
+            });
 
-          var updateJobCollectionJSON = {
-            fields: {
-              appJobGroupId: {
-                stringValue: "" + appJobGroupID + ""
-              },
-              syncedWithNetSuite: {
-                booleanValue: true
-              },
-              stops: {
-                arrayValue: {
-                  values: [
-                    {
-                      mapValue: {
-                        fields: {
-                          type: { stringValue: "pickup" },
-                          label: { stringValue: "Pickup LPO" },
-                          locationName: {
-                            stringValue: "" + lpoName + ""
-                          },
-                          address: {
-                            stringValue:
-                              "" +
-                              lpoShippingAddress1 +
-                              " " +
-                              lpoShippingAddress2 +
-                              ""
-                          },
-                          suburb: { stringValue: "" + lpoShippingCity + "" },
-                          state: {
-                            stringValue: "" + lpoShippingStateProvince + ""
-                          },
-                          postcode: { stringValue: "" + lpoShippingZip + "" },
-                          sequence: { integerValue: "1" },
-                          status: { stringValue: "pending" },
-                          appJobId: { stringValue: "" + app_job_id_1 + "" },
-                          lat: { stringValue: "" + lpoShippingLat + "" },
-                          lng: { stringValue: "" + lpoShippingLon + "" }
+            var updateJobCollectionJSON = {
+              fields: {
+                appJobGroupId: {
+                  stringValue: "" + appJobGroupID + ""
+                },
+                syncedWithNetSuite: {
+                  booleanValue: true
+                },
+                stops: {
+                  arrayValue: {
+                    values: [
+                      {
+                        mapValue: {
+                          fields: {
+                            type: { stringValue: "pickup" },
+                            label: { stringValue: "Pickup Site" },
+                            locationName: {
+                              stringValue: "" + siteCompanyName + ""
+                            },
+                            address: {
+                              stringValue:
+                                "" +
+                                shippingAddress1 +
+                                " " +
+                                shippingAddress2 +
+                                ""
+                            },
+                            suburb: { stringValue: "" + shippingCity + "" },
+                            state: {
+                              stringValue: "" + shippingStateProvince + ""
+                            },
+                            postcode: { stringValue: "" + shippingZip + "" },
+                            sequence: { integerValue: "1" },
+                            status: { stringValue: "pending" },
+                            appJobId: { stringValue: "" + app_job_id_1 + "" },
+                            lat: { stringValue: "" + shippingLat + "" },
+                            lng: { stringValue: "" + shippingLon + "" }
+                          }
+                        }
+                      },
+                      {
+                        mapValue: {
+                          fields: {
+                            type: { stringValue: "delivery" },
+                            label: { stringValue: "Delivery LPO" },
+                            locationName: {
+                              stringValue: "" + lpoName + ""
+                            },
+                            address: {
+                              stringValue:
+                                "" +
+                                lpoShippingAddress1 +
+                                " " +
+                                lpoShippingAddress2 +
+                                ""
+                            },
+                            suburb: { stringValue: "" + lpoShippingCity + "" },
+                            state: {
+                              stringValue: "" + lpoShippingStateProvince + ""
+                            },
+                            postcode: { stringValue: "" + lpoShippingZip + "" },
+                            sequence: { integerValue: "2" },
+                            status: { stringValue: "pending" },
+                            appJobId: { stringValue: "" + app_job_id_2 + "" },
+                            lat: { stringValue: "" + lpoShippingLat + "" },
+                            lng: { stringValue: "" + lpoShippingLon + "" }
+                          }
                         }
                       }
-                    },
-                    {
-                      mapValue: {
-                        fields: {
-                          type: { stringValue: "delivery" },
-                          label: { stringValue: "Delivery Site" },
-                          locationName: {
-                            stringValue: "" + siteCompanyName + ""
-                          },
-                          address: {
-                            stringValue:
-                              "" +
-                              shippingAddress1 +
-                              " " +
-                              shippingAddress2 +
-                              ""
-                          },
-                          suburb: { stringValue: "" + shippingCity + "" },
-                          state: {
-                            stringValue: "" + shippingStateProvince + ""
-                          },
-                          postcode: { stringValue: "" + shippingZip + "" },
-                          sequence: { integerValue: "2" },
-                          status: { stringValue: "pending" },
-                          appJobId: { stringValue: "" + app_job_id_2 + "" },
-                          lat: { stringValue: "" + shippingLat + "" },
-                          lng: { stringValue: "" + shippingLon + "" }
-                        }
-                      }
-                    }
-                  ]
+                    ]
+                  }
                 }
               }
-            }
-          };
+            };
 
-          var firebaseUpdateURL =
-            "https://firestore.googleapis.com/v1/projects/mp-lpo-connect/databases/lpoconnect/documents/jobs/" +
-            job_id +
-            "?updateMask.fieldPaths=stops&updateMask.fieldPaths=appJobGroupId&updateMask.fieldPaths=syncedWithNetSuite";
-          var apiHeaders = {};
-          apiHeaders["Content-Type"] = "application/json";
-          apiHeaders["Accept"] = "*/*";
-          apiHeaders["X-HTTP-Method-Override"] = "PATCH";
+            var firebaseUpdateURL =
+              "https://firestore.googleapis.com/v1/projects/mp-lpo-connect/databases/lpoconnect/documents/jobs/" +
+              job_id +
+              "?updateMask.fieldPaths=stops&updateMask.fieldPaths=appJobGroupId&updateMask.fieldPaths=syncedWithNetSuite";
+            var apiHeaders = {};
+            apiHeaders["Content-Type"] = "application/json";
+            apiHeaders["Accept"] = "*/*";
+            apiHeaders["X-HTTP-Method-Override"] = "PATCH";
 
-          var response = https.request({
-            method: https.Method.POST,
-            url: firebaseUpdateURL,
-            body: JSON.stringify(updateJobCollectionJSON),
-            headers: apiHeaders
-          });
+            var response = https.request({
+              method: https.Method.POST,
+              url: firebaseUpdateURL,
+              body: JSON.stringify(updateJobCollectionJSON),
+              headers: apiHeaders
+            });
 
-          var myresponse_body = response.body;
-          var myresponse_code = response.code;
+            var myresponse_body = response.body;
+            var myresponse_code = response.code;
 
-          log.debug({
-            title: "myresponse_body",
-            details: myresponse_body
-          });
+            log.debug({
+              title: "myresponse_body",
+              details: myresponse_body
+            });
 
-          log.debug({
-            title: "myresponse_code",
-            details: myresponse_code
-          });
-        } else if (serviceType == "round-trip") {
-          // Create App Job Group
-          var appJobGroupID = createAppJobGroup(
-            "Package: AMPO & PMPO",
-            customerInternalId,
-            companyLinkedZee,
-            serviceInternalId,
-            dateDDMMYYYY,
-            netsuiteLPOServiceDateDateFormat,
-            job_id
-          );
+            log.debug({
+              title: "myresponse_code",
+              details: myresponse_code
+            });
+          } else if (serviceType == "lpo-to-site") {
+            //AMPO
+            // Create App Job Group
+            var appJobGroupID = createAppJobGroup(
+              "AMPO",
+              customerInternalId,
+              companyLinkedZee,
+              serviceInternalId,
+              dateDDMMYYYY,
+              netsuiteLPOServiceDateDateFormat,
+              job_id
+            );
 
-          log.debug({
-            title: "App Job Group ID",
-            details: appJobGroupID
-          });
+            log.debug({
+              title: "App Job Group ID",
+              details: appJobGroupID
+            });
 
-          var appJobGroupRecord = record.load({
-            type: "customrecord_jobgroup",
-            id: appJobGroupID
-          });
+            var appJobGroupRecord = record.load({
+              type: "customrecord_jobgroup",
+              id: appJobGroupID
+            });
 
-          var app_job_group_name = appJobGroupRecord.getValue({
-            fieldId: "name"
-          });
+            var app_job_group_name = appJobGroupRecord.getValue({
+              fieldId: "name"
+            });
 
-          var stopNameForPickup = "PICKUP - " + lpoName.toUpperCase();
+            var stopNameForPickup = "PICKUP - " + lpoName.toUpperCase();
 
-          //Create App Jobs for LPO PickUp
-          var app_job_id_1 = createAppJobs(
-            customerInternalId,
-            lpoName.toUpperCase(),
-            serviceInternalId,
-            currentTime,
-            appJobGroupID,
-            lpoShippingAddress1 + " " + lpoShippingAddress2,
-            lpoShippingCity,
-            lpoShippingStateProvince,
-            lpoShippingZip,
-            lpoShippingLat,
-            lpoShippingLon,
-            companyLinkedZee,
-            instructions,
-            null,
-            3,
-            "adhoc",
-            siteCompanyName,
-            app_job_group_name,
-            netsuiteLPOServiceDateDateFormat,
-            dateDDMMYYYY,
-            1,
-            lpoContactFName + " " + lpoContactLName,
-            "",
-            lpoContactEmail,
-            lpoContactPhone,
-            jobDate,
-            stopNameForPickup,
-            activeOperator,
-            4
-          );
+            //Create App Jobs for LPO PickUp
+            var app_job_id_1 = createAppJobs(
+              customerInternalId,
+              lpoName.toUpperCase(),
+              serviceInternalId,
+              currentTime,
+              appJobGroupID,
+              lpoShippingAddress1 + " " + lpoShippingAddress2,
+              lpoShippingCity,
+              lpoShippingStateProvince,
+              lpoShippingZip,
+              lpoShippingLat,
+              lpoShippingLon,
+              companyLinkedZee,
+              instructions,
+              null,
+              3,
+              "adhoc",
+              siteCompanyName,
+              app_job_group_name,
+              netsuiteLPOServiceDateDateFormat,
+              dateDDMMYYYY,
+              1,
+              lpoContactFName + " " + lpoContactLName,
+              "",
+              lpoContactEmail,
+              lpoContactPhone,
+              jobDate,
+              stopNameForPickup,
+              activeOperator,
+              2
+            );
 
-          log.debug({
-            title: "Pickup Job ID",
-            details: app_job_id_1
-          });
+            log.debug({
+              title: "Pickup Job ID",
+              details: app_job_id_1
+            });
 
-          var stopNameForDeliveryPickup =
-            "DELIVERY & PICKUP - " + siteCompanyName.toUpperCase();
-          //Create App Jobs for Site Delivery
-          var app_job_id_2 = createAppJobs(
-            customerInternalId,
-            siteCompanyName.toUpperCase(),
-            serviceInternalId,
-            currentTime,
-            appJobGroupID,
-            shippingAddress1 + " " + shippingAddress2,
-            shippingCity,
-            shippingStateProvince,
-            shippingZip,
-            shippingLat,
-            shippingLon,
-            companyLinkedZee,
-            instructions,
-            null,
-            null,
-            "adhoc",
-            siteCompanyName,
-            app_job_group_name,
-            netsuiteLPOServiceDateDateFormat,
-            dateDDMMYYYY,
-            2,
-            customerContactName,
-            "",
-            customerContactEmail,
-            customerContactPhone,
-            jobDate,
-            stopNameForDeliveryPickup,
-            activeOperator,
-            4
-          );
-          log.debug({
-            title: "Delivery Job ID",
-            details: app_job_id_2
-          });
+            var stopNameForDelivery =
+              "DELIVERY - " + siteCompanyName.toUpperCase();
+            //Create App Jobs for Site Delivery
+            var app_job_id_2 = createAppJobs(
+              customerInternalId,
+              siteCompanyName.toUpperCase(),
+              serviceInternalId,
+              currentTime,
+              appJobGroupID,
+              shippingAddress1 + " " + shippingAddress2,
+              shippingCity,
+              shippingStateProvince,
+              shippingZip,
+              shippingLat,
+              shippingLon,
+              companyLinkedZee,
+              instructions,
+              null,
+              null,
+              "adhoc",
+              siteCompanyName,
+              app_job_group_name,
+              netsuiteLPOServiceDateDateFormat,
+              dateDDMMYYYY,
+              2,
+              customerContactName,
+              "",
+              customerContactEmail,
+              customerContactPhone,
+              jobDate,
+              stopNameForDelivery,
+              activeOperator,
+              2
+            );
+            log.debug({
+              title: "Delivery Job ID",
+              details: app_job_id_2
+            });
 
-          //Create App Jobs for Site Delivery
-          var app_job_id_3 = createAppJobs(
-            customerInternalId,
-            siteCompanyName.toUpperCase(),
-            serviceInternalId,
-            currentTime,
-            appJobGroupID,
-            shippingAddress1 + " " + shippingAddress2,
-            shippingCity,
-            shippingStateProvince,
-            shippingZip,
-            shippingLat,
-            shippingLon,
-            companyLinkedZee,
-            instructions,
-            null,
-            null,
-            "adhoc",
-            siteCompanyName,
-            app_job_group_name,
-            netsuiteLPOServiceDateDateFormat,
-            dateDDMMYYYY,
-            3,
-            customerContactName,
-            "",
-            customerContactEmail,
-            customerContactPhone,
-            jobDate,
-            stopNameForDeliveryPickup,
-            activeOperator,
-            4
-          );
-          log.debug({
-            title: "Pickup Job ID",
-            details: app_job_id_3
-          });
-
-          var stopNameForDelivery = "DELIVERY - " + lpoName.toUpperCase();
-
-          //Create App Jobs for LPO Delivery
-          var app_job_id_4 = createAppJobs(
-            customerInternalId,
-            lpoName.toUpperCase(),
-            serviceInternalId,
-            currentTime,
-            appJobGroupID,
-            lpoShippingAddress1 + " " + lpoShippingAddress2,
-            lpoShippingCity,
-            lpoShippingStateProvince,
-            lpoShippingZip,
-            lpoShippingLat,
-            lpoShippingLon,
-            companyLinkedZee,
-            instructions,
-            null,
-            3,
-            "adhoc",
-            siteCompanyName,
-            app_job_group_name,
-            netsuiteLPOServiceDateDateFormat,
-            dateDDMMYYYY,
-            4,
-            lpoContactFName + " " + lpoContactLName,
-            "",
-            lpoContactEmail,
-            lpoContactPhone,
-            jobDate,
-            stopNameForDelivery,
-            activeOperator,
-            4
-          );
-
-          log.debug({
-            title: "Delivery Job ID",
-            details: app_job_id_4
-          });
-
-          var updateJobCollectionJSON = {
-            fields: {
-              appJobGroupId: {
-                stringValue: "" + appJobGroupID + ""
-              },
-              syncedWithNetSuite: {
-                booleanValue: true
-              },
-              stops: {
-                arrayValue: {
-                  values: [
-                    {
-                      mapValue: {
-                        fields: {
-                          type: { stringValue: "pickup" },
-                          label: { stringValue: "Pickup LPO" },
-                          locationName: { stringValue: "" + lpoName + "" },
-                          address: {
-                            stringValue:
-                              "" +
-                              lpoShippingAddress1 +
-                              " " +
-                              lpoShippingAddress2 +
-                              ""
-                          },
-                          suburb: { stringValue: "" + lpoShippingCity + "" },
-                          state: {
-                            stringValue: "" + lpoShippingStateProvince + ""
-                          },
-                          postcode: { stringValue: "" + lpoShippingZip + "" },
-                          sequence: { integerValue: "1" },
-                          status: { stringValue: "pending" },
-                          appJobId: { stringValue: "" + app_job_id_1 + "" },
-                          lat: { stringValue: "" + lpoShippingLat + "" },
-                          lng: { stringValue: "" + lpoShippingLon + "" }
+            var updateJobCollectionJSON = {
+              fields: {
+                appJobGroupId: {
+                  stringValue: "" + appJobGroupID + ""
+                },
+                syncedWithNetSuite: {
+                  booleanValue: true
+                },
+                stops: {
+                  arrayValue: {
+                    values: [
+                      {
+                        mapValue: {
+                          fields: {
+                            type: { stringValue: "pickup" },
+                            label: { stringValue: "Pickup LPO" },
+                            locationName: {
+                              stringValue: "" + lpoName + ""
+                            },
+                            address: {
+                              stringValue:
+                                "" +
+                                lpoShippingAddress1 +
+                                " " +
+                                lpoShippingAddress2 +
+                                ""
+                            },
+                            suburb: { stringValue: "" + lpoShippingCity + "" },
+                            state: {
+                              stringValue: "" + lpoShippingStateProvince + ""
+                            },
+                            postcode: { stringValue: "" + lpoShippingZip + "" },
+                            sequence: { integerValue: "1" },
+                            status: { stringValue: "pending" },
+                            appJobId: { stringValue: "" + app_job_id_1 + "" },
+                            lat: { stringValue: "" + lpoShippingLat + "" },
+                            lng: { stringValue: "" + lpoShippingLon + "" }
+                          }
+                        }
+                      },
+                      {
+                        mapValue: {
+                          fields: {
+                            type: { stringValue: "delivery" },
+                            label: { stringValue: "Delivery Site" },
+                            locationName: {
+                              stringValue: "" + siteCompanyName + ""
+                            },
+                            address: {
+                              stringValue:
+                                "" +
+                                shippingAddress1 +
+                                " " +
+                                shippingAddress2 +
+                                ""
+                            },
+                            suburb: { stringValue: "" + shippingCity + "" },
+                            state: {
+                              stringValue: "" + shippingStateProvince + ""
+                            },
+                            postcode: { stringValue: "" + shippingZip + "" },
+                            sequence: { integerValue: "2" },
+                            status: { stringValue: "pending" },
+                            appJobId: { stringValue: "" + app_job_id_2 + "" },
+                            lat: { stringValue: "" + shippingLat + "" },
+                            lng: { stringValue: "" + shippingLon + "" }
+                          }
                         }
                       }
-                    },
-                    {
-                      mapValue: {
-                        fields: {
-                          type: { stringValue: "delivery" },
-                          label: { stringValue: "Delivery Site" },
-                          locationName: {
-                            stringValue: "" + siteCompanyName + ""
-                          },
-                          address: {
-                            stringValue:
-                              "" +
-                              shippingAddress1 +
-                              " " +
-                              shippingAddress2 +
-                              ""
-                          },
-                          suburb: { stringValue: "" + shippingCity + "" },
-                          state: {
-                            stringValue: "" + shippingStateProvince + ""
-                          },
-                          postcode: { stringValue: "" + shippingZip + "" },
-                          sequence: { integerValue: "2" },
-                          status: { stringValue: "pending" },
-                          appJobId: { stringValue: "" + app_job_id_2 + "" },
-                          lat: { stringValue: "" + shippingLat + "" },
-                          lng: { stringValue: "" + shippingLon + "" }
-                        }
-                      }
-                    },
-                    {
-                      mapValue: {
-                        fields: {
-                          type: { stringValue: "delivery" },
-                          label: { stringValue: "Pickup Site" },
-                          locationName: {
-                            stringValue: "" + siteCompanyName + ""
-                          },
-                          address: {
-                            stringValue:
-                              "" +
-                              shippingAddress1 +
-                              " " +
-                              shippingAddress2 +
-                              ""
-                          },
-                          suburb: { stringValue: "" + shippingCity + "" },
-                          state: {
-                            stringValue: "" + shippingStateProvince + ""
-                          },
-                          postcode: { stringValue: "" + shippingZip + "" },
-                          sequence: { integerValue: "3" },
-                          status: { stringValue: "pending" },
-                          appJobId: { stringValue: "" + app_job_id_3 + "" },
-                          lat: { stringValue: "" + shippingLat + "" },
-                          lng: { stringValue: "" + shippingLon + "" }
-                        }
-                      }
-                    },
-                    {
-                      mapValue: {
-                        fields: {
-                          type: { stringValue: "pickup" },
-                          label: { stringValue: "Delivery LPO" },
-                          locationName: { stringValue: "" + lpoName + "" },
-                          address: {
-                            stringValue:
-                              "" +
-                              lpoShippingAddress1 +
-                              " " +
-                              lpoShippingAddress2 +
-                              ""
-                          },
-                          suburb: { stringValue: "" + lpoShippingCity + "" },
-                          state: {
-                            stringValue: "" + lpoShippingStateProvince + ""
-                          },
-                          postcode: { stringValue: "" + lpoShippingZip + "" },
-                          sequence: { integerValue: "4" },
-                          status: { stringValue: "pending" },
-                          appJobId: { stringValue: "" + app_job_id_4 + "" },
-                          lat: { stringValue: "" + lpoShippingLat + "" },
-                          lng: { stringValue: "" + lpoShippingLon + "" }
-                        }
-                      }
-                    }
-                  ]
+                    ]
+                  }
                 }
               }
-            }
-          };
+            };
 
-          var firebaseUpdateURL =
-            "https://firestore.googleapis.com/v1/projects/mp-lpo-connect/databases/lpoconnect/documents/jobs/" +
-            job_id +
-            "?updateMask.fieldPaths=stops&updateMask.fieldPaths=appJobGroupId";
-          var apiHeaders = {};
-          apiHeaders["Content-Type"] = "application/json";
-          apiHeaders["Accept"] = "*/*";
-          apiHeaders["X-HTTP-Method-Override"] = "PATCH";
+            var firebaseUpdateURL =
+              "https://firestore.googleapis.com/v1/projects/mp-lpo-connect/databases/lpoconnect/documents/jobs/" +
+              job_id +
+              "?updateMask.fieldPaths=stops&updateMask.fieldPaths=appJobGroupId&updateMask.fieldPaths=syncedWithNetSuite";
+            var apiHeaders = {};
+            apiHeaders["Content-Type"] = "application/json";
+            apiHeaders["Accept"] = "*/*";
+            apiHeaders["X-HTTP-Method-Override"] = "PATCH";
 
-          var response = https.request({
-            method: https.Method.POST,
-            url: firebaseUpdateURL,
-            body: JSON.stringify(updateJobCollectionJSON),
-            headers: apiHeaders
-          });
+            var response = https.request({
+              method: https.Method.POST,
+              url: firebaseUpdateURL,
+              body: JSON.stringify(updateJobCollectionJSON),
+              headers: apiHeaders
+            });
 
-          var myresponse_body = response.body;
-          var myresponse_code = response.code;
+            var myresponse_body = response.body;
+            var myresponse_code = response.code;
 
-          log.debug({
-            title: "myresponse_body",
-            details: myresponse_body
-          });
+            log.debug({
+              title: "myresponse_body",
+              details: myresponse_body
+            });
 
-          log.debug({
-            title: "myresponse_code",
-            details: myresponse_code
-          });
+            log.debug({
+              title: "myresponse_code",
+              details: myresponse_code
+            });
+          } else if (serviceType == "round-trip") {
+            // Create App Job Group
+            var appJobGroupID = createAppJobGroup(
+              "Package: AMPO & PMPO",
+              customerInternalId,
+              companyLinkedZee,
+              serviceInternalId,
+              dateDDMMYYYY,
+              netsuiteLPOServiceDateDateFormat,
+              job_id
+            );
+
+            log.debug({
+              title: "App Job Group ID",
+              details: appJobGroupID
+            });
+
+            var appJobGroupRecord = record.load({
+              type: "customrecord_jobgroup",
+              id: appJobGroupID
+            });
+
+            var app_job_group_name = appJobGroupRecord.getValue({
+              fieldId: "name"
+            });
+
+            var stopNameForPickup = "PICKUP - " + lpoName.toUpperCase();
+
+            //Create App Jobs for LPO PickUp
+            var app_job_id_1 = createAppJobs(
+              customerInternalId,
+              lpoName.toUpperCase(),
+              serviceInternalId,
+              currentTime,
+              appJobGroupID,
+              lpoShippingAddress1 + " " + lpoShippingAddress2,
+              lpoShippingCity,
+              lpoShippingStateProvince,
+              lpoShippingZip,
+              lpoShippingLat,
+              lpoShippingLon,
+              companyLinkedZee,
+              instructions,
+              null,
+              3,
+              "adhoc",
+              siteCompanyName,
+              app_job_group_name,
+              netsuiteLPOServiceDateDateFormat,
+              dateDDMMYYYY,
+              1,
+              lpoContactFName + " " + lpoContactLName,
+              "",
+              lpoContactEmail,
+              lpoContactPhone,
+              jobDate,
+              stopNameForPickup,
+              activeOperator,
+              4
+            );
+
+            log.debug({
+              title: "Pickup Job ID",
+              details: app_job_id_1
+            });
+
+            var stopNameForDeliveryPickup =
+              "DELIVERY & PICKUP - " + siteCompanyName.toUpperCase();
+            //Create App Jobs for Site Delivery
+            var app_job_id_2 = createAppJobs(
+              customerInternalId,
+              siteCompanyName.toUpperCase(),
+              serviceInternalId,
+              currentTime,
+              appJobGroupID,
+              shippingAddress1 + " " + shippingAddress2,
+              shippingCity,
+              shippingStateProvince,
+              shippingZip,
+              shippingLat,
+              shippingLon,
+              companyLinkedZee,
+              instructions,
+              null,
+              null,
+              "adhoc",
+              siteCompanyName,
+              app_job_group_name,
+              netsuiteLPOServiceDateDateFormat,
+              dateDDMMYYYY,
+              2,
+              customerContactName,
+              "",
+              customerContactEmail,
+              customerContactPhone,
+              jobDate,
+              stopNameForDeliveryPickup,
+              activeOperator,
+              4
+            );
+            log.debug({
+              title: "Delivery Job ID",
+              details: app_job_id_2
+            });
+
+            //Create App Jobs for Site Delivery
+            var app_job_id_3 = createAppJobs(
+              customerInternalId,
+              siteCompanyName.toUpperCase(),
+              serviceInternalId,
+              currentTime,
+              appJobGroupID,
+              shippingAddress1 + " " + shippingAddress2,
+              shippingCity,
+              shippingStateProvince,
+              shippingZip,
+              shippingLat,
+              shippingLon,
+              companyLinkedZee,
+              instructions,
+              null,
+              null,
+              "adhoc",
+              siteCompanyName,
+              app_job_group_name,
+              netsuiteLPOServiceDateDateFormat,
+              dateDDMMYYYY,
+              3,
+              customerContactName,
+              "",
+              customerContactEmail,
+              customerContactPhone,
+              jobDate,
+              stopNameForDeliveryPickup,
+              activeOperator,
+              4
+            );
+            log.debug({
+              title: "Pickup Job ID",
+              details: app_job_id_3
+            });
+
+            var stopNameForDelivery = "DELIVERY - " + lpoName.toUpperCase();
+
+            //Create App Jobs for LPO Delivery
+            var app_job_id_4 = createAppJobs(
+              customerInternalId,
+              lpoName.toUpperCase(),
+              serviceInternalId,
+              currentTime,
+              appJobGroupID,
+              lpoShippingAddress1 + " " + lpoShippingAddress2,
+              lpoShippingCity,
+              lpoShippingStateProvince,
+              lpoShippingZip,
+              lpoShippingLat,
+              lpoShippingLon,
+              companyLinkedZee,
+              instructions,
+              null,
+              3,
+              "adhoc",
+              siteCompanyName,
+              app_job_group_name,
+              netsuiteLPOServiceDateDateFormat,
+              dateDDMMYYYY,
+              4,
+              lpoContactFName + " " + lpoContactLName,
+              "",
+              lpoContactEmail,
+              lpoContactPhone,
+              jobDate,
+              stopNameForDelivery,
+              activeOperator,
+              4
+            );
+
+            log.debug({
+              title: "Delivery Job ID",
+              details: app_job_id_4
+            });
+
+            var updateJobCollectionJSON = {
+              fields: {
+                appJobGroupId: {
+                  stringValue: "" + appJobGroupID + ""
+                },
+                syncedWithNetSuite: {
+                  booleanValue: true
+                },
+                stops: {
+                  arrayValue: {
+                    values: [
+                      {
+                        mapValue: {
+                          fields: {
+                            type: { stringValue: "pickup" },
+                            label: { stringValue: "Pickup LPO" },
+                            locationName: { stringValue: "" + lpoName + "" },
+                            address: {
+                              stringValue:
+                                "" +
+                                lpoShippingAddress1 +
+                                " " +
+                                lpoShippingAddress2 +
+                                ""
+                            },
+                            suburb: { stringValue: "" + lpoShippingCity + "" },
+                            state: {
+                              stringValue: "" + lpoShippingStateProvince + ""
+                            },
+                            postcode: { stringValue: "" + lpoShippingZip + "" },
+                            sequence: { integerValue: "1" },
+                            status: { stringValue: "pending" },
+                            appJobId: { stringValue: "" + app_job_id_1 + "" },
+                            lat: { stringValue: "" + lpoShippingLat + "" },
+                            lng: { stringValue: "" + lpoShippingLon + "" }
+                          }
+                        }
+                      },
+                      {
+                        mapValue: {
+                          fields: {
+                            type: { stringValue: "delivery" },
+                            label: { stringValue: "Delivery Site" },
+                            locationName: {
+                              stringValue: "" + siteCompanyName + ""
+                            },
+                            address: {
+                              stringValue:
+                                "" +
+                                shippingAddress1 +
+                                " " +
+                                shippingAddress2 +
+                                ""
+                            },
+                            suburb: { stringValue: "" + shippingCity + "" },
+                            state: {
+                              stringValue: "" + shippingStateProvince + ""
+                            },
+                            postcode: { stringValue: "" + shippingZip + "" },
+                            sequence: { integerValue: "2" },
+                            status: { stringValue: "pending" },
+                            appJobId: { stringValue: "" + app_job_id_2 + "" },
+                            lat: { stringValue: "" + shippingLat + "" },
+                            lng: { stringValue: "" + shippingLon + "" }
+                          }
+                        }
+                      },
+                      {
+                        mapValue: {
+                          fields: {
+                            type: { stringValue: "delivery" },
+                            label: { stringValue: "Pickup Site" },
+                            locationName: {
+                              stringValue: "" + siteCompanyName + ""
+                            },
+                            address: {
+                              stringValue:
+                                "" +
+                                shippingAddress1 +
+                                " " +
+                                shippingAddress2 +
+                                ""
+                            },
+                            suburb: { stringValue: "" + shippingCity + "" },
+                            state: {
+                              stringValue: "" + shippingStateProvince + ""
+                            },
+                            postcode: { stringValue: "" + shippingZip + "" },
+                            sequence: { integerValue: "3" },
+                            status: { stringValue: "pending" },
+                            appJobId: { stringValue: "" + app_job_id_3 + "" },
+                            lat: { stringValue: "" + shippingLat + "" },
+                            lng: { stringValue: "" + shippingLon + "" }
+                          }
+                        }
+                      },
+                      {
+                        mapValue: {
+                          fields: {
+                            type: { stringValue: "pickup" },
+                            label: { stringValue: "Delivery LPO" },
+                            locationName: { stringValue: "" + lpoName + "" },
+                            address: {
+                              stringValue:
+                                "" +
+                                lpoShippingAddress1 +
+                                " " +
+                                lpoShippingAddress2 +
+                                ""
+                            },
+                            suburb: { stringValue: "" + lpoShippingCity + "" },
+                            state: {
+                              stringValue: "" + lpoShippingStateProvince + ""
+                            },
+                            postcode: { stringValue: "" + lpoShippingZip + "" },
+                            sequence: { integerValue: "4" },
+                            status: { stringValue: "pending" },
+                            appJobId: { stringValue: "" + app_job_id_4 + "" },
+                            lat: { stringValue: "" + lpoShippingLat + "" },
+                            lng: { stringValue: "" + lpoShippingLon + "" }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            };
+
+            var firebaseUpdateURL =
+              "https://firestore.googleapis.com/v1/projects/mp-lpo-connect/databases/lpoconnect/documents/jobs/" +
+              job_id +
+              "?updateMask.fieldPaths=stops&updateMask.fieldPaths=appJobGroupId";
+            var apiHeaders = {};
+            apiHeaders["Content-Type"] = "application/json";
+            apiHeaders["Accept"] = "*/*";
+            apiHeaders["X-HTTP-Method-Override"] = "PATCH";
+
+            var response = https.request({
+              method: https.Method.POST,
+              url: firebaseUpdateURL,
+              body: JSON.stringify(updateJobCollectionJSON),
+              headers: apiHeaders
+            });
+
+            var myresponse_body = response.body;
+            var myresponse_code = response.code;
+
+            log.debug({
+              title: "myresponse_body",
+              details: myresponse_body
+            });
+
+            log.debug({
+              title: "myresponse_code",
+              details: myresponse_code
+            });
+          }
         }
+      } catch (e) {
+        log.error({
+          title: "Error in execute function",
+          details: e
+        });
       }
     }
   }
