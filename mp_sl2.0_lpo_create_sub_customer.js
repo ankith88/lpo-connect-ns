@@ -3492,6 +3492,48 @@ define([
         result: ""
       };
 
+      var ppResponse = createLeadInProspectPlus({
+        leadId: subCustomerInternalId.toString(),
+        contactId: primaryContactInternalID
+          ? primaryContactInternalID.toString()
+          : null,
+        companyName: business_name,
+        primaryContactName: first_name + " " + last_name,
+        primaryContactEmail: contact_email,
+        primaryContactPhone: phone_number,
+        companyEmail: contact_email,
+        companyPhone: phone_number,
+        address1: address1,
+        address2: address2,
+        city: city,
+        state: state,
+        zip: postcode,
+        country: "AU",
+        latitude: lat,
+        longitude: lng,
+        companyNotes: lpo_notes,
+        leadSource: "LPO Network Onboarding",
+        campaign: "LPO Network Onboarding",
+        bucket: "lpo_network",
+        leadCreatedBy: runtime.getCurrentUser().id.toString(),
+        accountManagerName: "Lee Russell",
+        accountManagerEmail: "lee@mailplus.com.au",
+        accountManagerPhone: "0402000000",
+        suburbStatus: "SERVICED"
+      });
+
+      if (ppResponse.success) {
+        log.audit({
+          title: "Lead Created in ProspectPlus",
+          details: "Lead ID: " + ppResponse.leadId
+        });
+      } else {
+        log.error({
+          title: "ProspectPlus Lead Creation Failed",
+          details: ppResponse.error
+        });
+      }
+
       log.debug({
         title: "returnObj",
         details: returnObj
@@ -3783,6 +3825,285 @@ define([
     return (
       weekday + ", " + day + getOrdinalSuffix(day) + " " + month + " " + year
     );
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════════
+   * PROSPECTPLUS LEAD CREATION FUNCTIONS
+   * ═══════════════════════════════════════════════════════════════════════════
+   *
+   * These functions automatically create and sync leads in ProspectPlus when
+   * LPO sub-customers are created.
+   *
+   * USAGE EXAMPLE:
+   * ────────────────────────────────────────────────────────────────────────────
+   *
+   * After creating the LPO sub-customer record, call the function like this:
+   *
+   *   var ppResponse = createLeadInProspectPlus({
+   *     leadId: subCustomerInternalId.toString(),
+   *     contactId: primaryContactInternalID ? primaryContactInternalID.toString() : null,
+   *     companyName: business_name,
+   *     primaryContactName: first_name + " " + last_name,
+   *     primaryContactEmail: contact_email,
+   *     primaryContactPhone: phone_number,
+   *     companyEmail: contact_email,
+   *     companyPhone: phone_number,
+   *     address1: address1,
+   *     address2: address2,
+   *     city: city,
+   *     state: state,
+   *     zip: postcode,
+   *     country: "AU",
+   *     latitude: lat,
+   *     longitude: lng,
+   *     companyNotes: lpo_notes,
+   *     leadSource: "LPO Network Onboarding",
+   *     campaign: "LPO Network Onboarding",
+   *     bucket: "lpo_network",
+   *     leadCreatedBy: runtime.getCurrentUser().id.toString(),
+   *     accountManagerName: "Lee Russell",
+   *     accountManagerEmail: "lee@mailplus.com.au",
+   *     accountManagerPhone: "0402000000",
+   *     suburbStatus: "SERVICED"
+   *   });
+   *
+   *   if (ppResponse.success) {
+   *     log.audit({
+   *       title: "Lead Created in ProspectPlus",
+   *       details: "Lead ID: " + ppResponse.leadId
+   *     });
+   *   } else {
+   *     log.error({
+   *       title: "ProspectPlus Lead Creation Failed",
+   *       details: ppResponse.error
+   *     });
+   *   }
+   *
+   * PARAMETERS:
+   * ────────────────────────────────────────────────────────────────────────────
+   *   leadId (required):           NetSuite sub-customer internal ID
+   *   companyName (required):      Business/company name
+   *   primaryContactName:          Contact person name
+   *   primaryContactEmail:         Contact email
+   *   primaryContactPhone:         Contact phone number
+   *   address1, address2:          Full address
+   *   city:                        Suburb/city name
+   *   state:                       State code (NSW, VIC, QLD, etc.)
+   *   zip:                         Postcode
+   *   latitude, longitude:         Coordinates
+   *   accountManagerName:          Assigned account manager
+   *   accountManagerEmail:         Account manager email
+   *   accountManagerPhone:         Account manager phone
+   *
+   * RETURN VALUE:
+   * ────────────────────────────────────────────────────────────────────────────
+   *   {
+   *     success: true/false,
+   *     leadId: string,
+   *     contactId: string,
+   *     bookingLinkResponse: { code, body },
+   *     error: "Error message if failed"
+   *   }
+   *
+   * ═══════════════════════════════════════════════════════════════════════════
+   */
+
+  /**
+   * Creates a new lead in ProspectPlus with complete lead data
+   * @param {Object} leadData - The lead data object containing all necessary fields
+   * @returns {Object} Response from ProspectPlus API
+   */
+  function createLeadInProspectPlus(leadData) {
+    try {
+      log.debug({
+        title: "Creating Lead in ProspectPlus",
+        details: JSON.stringify(leadData)
+      });
+
+      var ppLeadPayload = buildProspectPlusLeadPayload(leadData);
+
+      log.debug({
+        title: "ProspectPlus Lead Payload",
+        details: JSON.stringify(ppLeadPayload)
+      });
+
+      // Create the lead in ProspectPlus via booking link API
+      var bookingLinkResponse = createBookingLink(
+        leadData.leadId,
+        leadData.contactId,
+        leadData.accountManagerName
+      );
+
+      log.debug({
+        title: "ProspectPlus Booking Link Response",
+        details: JSON.stringify(bookingLinkResponse)
+      });
+
+      return {
+        success: true,
+        leadId: leadData.leadId,
+        contactId: leadData.contactId,
+        bookingLinkResponse: bookingLinkResponse,
+        payload: ppLeadPayload
+      };
+    } catch (error) {
+      log.error({
+        title: "Error Creating Lead in ProspectPlus",
+        details: error.toString()
+      });
+
+      return {
+        success: false,
+        error: error.toString(),
+        leadId: leadData.leadId
+      };
+    }
+  }
+
+  /**
+   * Builds the ProspectPlus lead payload object
+   * @param {Object} leadData - The raw lead data
+   * @returns {Object} Formatted payload for ProspectPlus
+   */
+  function buildProspectPlusLeadPayload(leadData) {
+    var payload = {
+      leadId: leadData.leadId,
+      contactId: leadData.contactId || null,
+      companyName: leadData.companyName,
+      contact: {
+        name: leadData.primaryContactName,
+        email: leadData.primaryContactEmail,
+        phone: leadData.primaryContactPhone
+      },
+      company: {
+        email: leadData.companyEmail,
+        phone: leadData.companyPhone,
+        abn: leadData.companyAbn || null,
+        website: leadData.website || null
+      },
+      address: {
+        line1: leadData.address1,
+        line2: leadData.address2 || null,
+        suburb: leadData.city,
+        state: leadData.state,
+        postcode: leadData.zip,
+        country: leadData.country || "AU",
+        latitude: leadData.latitude,
+        longitude: leadData.longitude
+      },
+      leadMetadata: {
+        source: leadData.leadSource,
+        campaign: leadData.campaign,
+        bucket: leadData.bucket,
+        suburbStatus: leadData.suburbStatus,
+        createdBy: leadData.leadCreatedBy,
+        createdAt: getCurrentDateTimeISO()
+      },
+      notes: leadData.companyNotes || null,
+      assignedTo: {
+        name: leadData.accountManagerName,
+        email: leadData.accountManagerEmail,
+        phone: leadData.accountManagerPhone
+      }
+    };
+
+    if (
+      !isNullorEmpty(leadData.checkInQuestions) &&
+      leadData.bucket != "inbound"
+    ) {
+      payload.checkInQuestions = parseCheckInQuestions(
+        leadData.checkInQuestions
+      );
+    }
+
+    return payload;
+  }
+
+  /**
+   * Creates a booking link in ProspectPlus
+   * @param {string} leadId - NetSuite Lead ID
+   * @param {string} contactId - NetSuite Contact ID
+   * @param {string} accountManagerName - Account manager assigned to lead
+   * @returns {Object} API response
+   */
+  function createBookingLink(leadId, contactId, accountManagerName) {
+    try {
+      var apiHeaders = {};
+      apiHeaders["Content-Type"] = "application/json";
+      apiHeaders["x-api-key"] = "454e75f843954875ccff72537d7702ba1ab6f65c";
+
+      var firebaseLeadBookingLink =
+        "https://prospectplus.com.au/api/calendar/booking-link";
+
+      var leadBookingLinkPayload = {
+        leadId: leadId.toString(),
+        contactId: contactId ? contactId.toString() : null,
+        accountManagerAssigned: accountManagerName
+      };
+
+      log.debug({
+        title: "Booking Link Payload",
+        details: JSON.stringify(leadBookingLinkPayload)
+      });
+
+      var response = https.request({
+        method: https.Method.POST,
+        url: firebaseLeadBookingLink,
+        body: JSON.stringify(leadBookingLinkPayload),
+        headers: apiHeaders
+      });
+
+      log.debug({
+        title: "Booking Link Response Code",
+        details: response.code
+      });
+
+      return {
+        code: response.code,
+        body: response.body
+      };
+    } catch (error) {
+      log.error({
+        title: "Error Creating Booking Link",
+        details: error.toString()
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Parses check-in questions string into an object
+   * @param {string} checkInQuestionsString - Questions in "Question: Answer\n" format
+   * @returns {Object} Parsed questions object
+   */
+  function parseCheckInQuestions(checkInQuestionsString) {
+    var questionsObj = {};
+
+    if (isNullorEmpty(checkInQuestionsString)) {
+      return questionsObj;
+    }
+
+    var checkInQuestionsArray = checkInQuestionsString.split("\n");
+    for (var i = 0; i < checkInQuestionsArray.length; i++) {
+      var questionAnswerPair = checkInQuestionsArray[i].split(":");
+      if (questionAnswerPair.length === 2) {
+        var question = questionAnswerPair[0].trim();
+        var answer = questionAnswerPair[1].trim();
+        questionsObj[question] = answer;
+      }
+    }
+
+    return questionsObj;
+  }
+
+  /**
+   * Gets current date and time in ISO format
+   * @returns {string} ISO format datetime
+   */
+  function getCurrentDateTimeISO() {
+    var now = new Date();
+    return now.toISOString();
   }
 
   return {
